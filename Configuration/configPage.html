@@ -95,11 +95,17 @@
         }
 
         function setConfigValue(config, pascalKey, camelKey, value) {
-            if (Object.prototype.hasOwnProperty.call(config, camelKey)) {
-                config[camelKey] = value;
+            if (config && Object.prototype.hasOwnProperty.call(config, pascalKey)) {
+                config[pascalKey] = value;
+                return;
             }
 
-            // Also set PascalCase for compatibility with plugin pages expecting CLR property names.
+            if (config && Object.prototype.hasOwnProperty.call(config, camelKey)) {
+                config[camelKey] = value;
+                return;
+            }
+
+            // If the API omitted the property entirely, fall back to CLR/PascalCase.
             config[pascalKey] = value;
         }
 
