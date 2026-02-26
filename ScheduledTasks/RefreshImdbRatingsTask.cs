@@ -52,7 +52,7 @@ public class RefreshImdbRatingsTask : IScheduledTask
         {
             new TaskTriggerInfo
             {
-                Type = TaskTriggerInfo.TriggerDaily,
+                Type = TaskTriggerInfoType.DailyTrigger,
                 TimeOfDayTicks = TimeSpan.FromHours(3).Ticks
             }
         };
@@ -289,7 +289,7 @@ public class RefreshImdbRatingsTask : IScheduledTask
             || (ex is IOException && ex is not InvalidDataException);
     }
 
-    private List<BaseItem> GetLibraryItems(PluginConfiguration config)
+    private IReadOnlyList<BaseItem> GetLibraryItems(PluginConfiguration config)
     {
         var query = new InternalItemsQuery
         {
@@ -312,7 +312,7 @@ public class RefreshImdbRatingsTask : IScheduledTask
         if (includeTypes.Count == 0)
         {
             _logger.LogWarning("No library types selected — nothing to update");
-            return new List<BaseItem>();
+            return Array.Empty<BaseItem>();
         }
 
         query.IncludeItemTypes = includeTypes.ToArray();

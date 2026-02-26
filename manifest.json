@@ -18,7 +18,7 @@
       {
         "version": "1.0.0.2",
         "changelog": "## What's Changed\n\n- chore(deps): bump github/codeql-action from 3 to 4 (eb16bae)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-imdb-rating-updater/compare/1.0.0.1...1.0.0.2\n",
-        "targetAbi": "10.10.7.0",
+        "targetAbi": "10.11.6.0",
         "sourceUrl": "https://github.com/voc0der/jellyfin-imdb-rating-updater/releases/download/1.0.0.2/IMDb_Ratings_1.0.0.2.zip",
         "checksum": "96bd66c62e63f32c16ce7bc8b10aa87c",
         "timestamp": "2026-02-26T15:47:31Z"
@@ -26,7 +26,7 @@
       {
         "version": "1.0.0.1",
         "changelog": "## What's Changed\n\n- Retry transient downloads and fall back to stale cache (1cd65c7)\n- Tighten batched rating updates on failure and null parents (9683ae9)\n- Improve batch update safety and input validation (98479ee)\n- Batch DB writes for rating updates, grouped by parent (0899669)\n- Harden IMDb ratings validation and retry handling (ca5a91d)\n- Initial commit: Jellyfin IMDb ratings plugin (cb06f9f)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-imdb-rating-updater/compare/1.0.0.0...1.0.0.1\n",
-        "targetAbi": "10.10.7.0",
+        "targetAbi": "10.11.6.0",
         "sourceUrl": "https://github.com/voc0der/jellyfin-imdb-rating-updater/releases/download/1.0.0.1/IMDb_Ratings_1.0.0.1.zip",
         "checksum": "2ccf540fbccf31b8835f6cdc9eae0ba4",
         "timestamp": "2026-02-26T15:46:27Z"
@@ -34,7 +34,7 @@
       {
         "version": "1.0.0.0",
         "changelog": "Initial release\n- Daily scheduled task with manual trigger\n- IMDb flat file download with 23-hour cache\n- Minimum votes threshold\n- Configurable library types (Movies, TV Series)\n- Web UI configuration page",
-        "targetAbi": "10.10.7.0",
+        "targetAbi": "10.11.6.0",
         "sourceUrl": "https://github.com/voc0der/jellyfin-imdb-rating-updater/releases/download/1.0.0.0/IMDb_Ratings_1.0.0.0.zip",
         "checksum": "PLACEHOLDER",
         "timestamp": "2026-02-26T00:00:00Z"
