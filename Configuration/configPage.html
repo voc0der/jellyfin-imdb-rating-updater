@@ -14,10 +14,11 @@
 
                         <div class="inputContainer">
                             <label class="inputLabel" for="txtMinimumVotes">Minimum Votes Threshold</label>
-                            <input id="txtMinimumVotes" type="number" min="0" max="1000000"
+                            <input id="txtMinimumVotes" type="number" min="1" max="1000000"
                                    pattern="[0-9]*" required class="emby-input" />
                             <div class="fieldDescription">
-                                Skip updating items where IMDb has fewer votes than this value. Default: 1000.
+                                Skip updating items where IMDb has fewer votes than this value. Default: 1.
+                                Lower values can increase task duration because more items qualify for updates.
                             </div>
                         </div>
 
@@ -37,7 +38,7 @@
                                 <span>Include TV Series</span>
                             </label>
                             <div class="fieldDescription checkboxFieldDescription">
-                                Update ratings for TV series in your library. Individual episodes are not updated.
+                                Update ratings for TV series and individual episodes in your library.
                             </div>
                         </div>
                     </div>

@@ -88,7 +88,9 @@ public class RefreshImdbRatingsTask : IScheduledTask
 
         // Step 4: Identify items that need rating updates (without mutating in-memory state)
         var pendingUpdates = new List<(BaseItem Item, BaseItem? Parent, float? OldRating, float NewRating)>();
-        int skipped = 0;
+        int skippedMissingImdbId = 0;
+        int skippedBelowMinimumVotes = 0;
+        int skippedUnchanged = 0;
         int notFound = 0;
 
         for (int i = 0; i < items.Count; i++)
@@ -100,7 +102,7 @@ public class RefreshImdbRatingsTask : IScheduledTask
 
             if (string.IsNullOrEmpty(imdbId))
             {
-                skipped++;
+                skippedMissingImdbId++;
             }
             else if (!ratings.TryGetValue(imdbId, out var ratingData))
             {
@@ -110,14 +112,14 @@ public class RefreshImdbRatingsTask : IScheduledTask
             else if (ratingData.Votes < config.MinimumVotes)
             {
                 _logger.LogDebug("Skipping \"{Name}\" — {Votes} votes below minimum {MinVotes}", item.Name, ratingData.Votes, config.MinimumVotes);
-                skipped++;
+                skippedBelowMinimumVotes++;
             }
             else
             {
                 var newRating = ratingData.Rating;
                 if (item.CommunityRating.HasValue && Math.Abs(item.CommunityRating.Value - newRating) < 0.01f)
                 {
-                    skipped++;
+                    skippedUnchanged++;
                 }
                 else
                 {
@@ -202,8 +204,15 @@ public class RefreshImdbRatingsTask : IScheduledTask
         }
 
         progress.Report(100);
-        _logger.LogInformation("IMDb ratings refresh complete: {Updated} updated, {Skipped} skipped, {NotFound} not found",
-            pendingUpdates.Count, skipped, notFound);
+        var skippedTotal = skippedMissingImdbId + skippedBelowMinimumVotes + skippedUnchanged;
+        _logger.LogInformation(
+            "IMDb ratings refresh complete: {Updated} updated, {Skipped} skipped ({Unchanged} unchanged, {BelowMinimum} below minimum votes, {MissingImdbId} missing IMDb ID), {NotFound} not found in IMDb ratings",
+            pendingUpdates.Count,
+            skippedTotal,
+            skippedUnchanged,
+            skippedBelowMinimumVotes,
+            skippedMissingImdbId,
+            notFound);
     }
 
     private async Task<Dictionary<string, (float Rating, int Votes)>> DownloadAndParseWithRetryAsync(
@@ -307,6 +316,7 @@ public class RefreshImdbRatingsTask : IScheduledTask
         if (config.IncludeSeries)
         {
             includeTypes.Add(BaseItemKind.Series);
+            includeTypes.Add(BaseItemKind.Episode);
         }
 
         if (includeTypes.Count == 0)

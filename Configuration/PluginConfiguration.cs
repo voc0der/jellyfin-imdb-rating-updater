@@ -5,12 +5,12 @@ namespace Jellyfin.Plugin.ImdbRatings.Configuration;
 
 public class PluginConfiguration : BasePluginConfiguration
 {
-    private int _minimumVotes = 1000;
+    private int _minimumVotes = 1;
 
     public int MinimumVotes
     {
         get => _minimumVotes;
-        set => _minimumVotes = Math.Clamp(value, 0, 1_000_000);
+        set => _minimumVotes = Math.Clamp(value, 1, 1_000_000);
     }
 
     public bool IncludeMovies { get; set; } = true;
