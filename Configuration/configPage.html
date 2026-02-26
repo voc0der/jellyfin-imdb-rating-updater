@@ -14,8 +14,8 @@
 
                         <div class="inputContainer">
                             <label class="inputLabel" for="txtMinimumVotes">Minimum Votes Threshold</label>
-                            <input id="txtMinimumVotes" type="number" is="emby-input" min="0" max="1000000"
-                                   pattern="[0-9]*" required />
+                            <input id="txtMinimumVotes" type="number" min="0" max="1000000"
+                                   pattern="[0-9]*" required class="emby-input" />
                             <div class="fieldDescription">
                                 Skip updating items where IMDb has fewer votes than this value. Default: 1000.
                             </div>
@@ -56,7 +56,7 @@
                     </div>
 
                     <div>
-                        <button is="emby-button" type="submit" class="raised button-submit block">
+                        <button id="btnSave" is="emby-button" type="button" class="raised button-submit block">
                             <span>Save</span>
                         </button>
                     </div>
@@ -84,17 +84,16 @@
                 });
             });
 
-        document.querySelector('#ImdbRatingsConfigForm')
-            .addEventListener('submit', function (e) {
-                e.preventDefault();
+        document.querySelector('#btnSave')
+            .addEventListener('click', function () {
                 Dashboard.showLoadingMsg();
                 ApiClient.getPluginConfiguration(ImdbRatingsConfig.pluginId).then(function (config) {
                     config.MinimumVotes = parseInt(document.querySelector('#txtMinimumVotes').value, 10);
                     config.IncludeMovies = document.querySelector('#chkIncludeMovies').checked;
                     config.IncludeSeries = document.querySelector('#chkIncludeSeries').checked;
 
-                    ApiClient.updatePluginConfiguration(ImdbRatingsConfig.pluginId, config).then(function () {
-                        Dashboard.processPluginConfigurationUpdateResult();
+                    ApiClient.updatePluginConfiguration(ImdbRatingsConfig.pluginId, config).then(function (result) {
+                        Dashboard.processPluginConfigurationUpdateResult(result);
                     }).catch(function (err) {
                         Dashboard.hideLoadingMsg();
                         Dashboard.alert('Failed to save IMDb Ratings configuration.');
@@ -103,7 +102,6 @@
                     Dashboard.hideLoadingMsg();
                     Dashboard.alert('Failed to load IMDb Ratings configuration.');
                 });
-                return false;
             });
     </script>
 </body>
