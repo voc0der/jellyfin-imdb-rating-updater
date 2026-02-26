@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -63,19 +64,15 @@ public class RefreshImdbRatingsTask : IScheduledTask
         _logger.LogInformation("Starting IMDb ratings refresh (minVotes={MinVotes}, movies={Movies}, series={Series})",
             config.MinimumVotes, config.IncludeMovies, config.IncludeSeries);
 
-        // Step 1: Download/cache the ratings file
+        // Step 1: Download/cache the ratings file, Step 2: Parse ratings
         progress.Report(0);
         var downloader = new ImdbFlatFileDownloader(
             _httpClientFactory,
             _loggerFactory.CreateLogger<ImdbFlatFileDownloader>(),
             _dataPath);
-
-        var filePath = await downloader.GetRatingsFilePathAsync(cancellationToken).ConfigureAwait(false);
-        progress.Report(10);
-
-        // Step 2: Parse ratings
         var parser = new ImdbRatingsParser(_loggerFactory.CreateLogger<ImdbRatingsParser>());
-        var ratings = await parser.ParseAsync(filePath, cancellationToken).ConfigureAwait(false);
+
+        var ratings = await DownloadAndParseWithRetryAsync(downloader, parser, progress, cancellationToken).ConfigureAwait(false);
         progress.Report(30);
 
         // Step 3: Get library items
@@ -136,6 +133,43 @@ public class RefreshImdbRatingsTask : IScheduledTask
         progress.Report(100);
         _logger.LogInformation("IMDb ratings refresh complete: {Updated} updated, {Skipped} skipped, {NotFound} not found",
             updated, skipped, notFound);
+    }
+
+    private async Task<Dictionary<string, (float Rating, int Votes)>> DownloadAndParseWithRetryAsync(
+        ImdbFlatFileDownloader downloader,
+        ImdbRatingsParser parser,
+        IProgress<double> progress,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var filePath = await downloader.GetRatingsFilePathAsync(cancellationToken).ConfigureAwait(false);
+            progress.Report(10);
+            return await parser.ParseAsync(filePath, cancellationToken).ConfigureAwait(false);
+        }
+        catch (InvalidDataException ex)
+        {
+            _logger.LogWarning(ex,
+                "IMDb ratings data failed validation/decompression on first attempt; invalidating cache and retrying once");
+
+            var invalidated = downloader.InvalidateCache();
+            if (!invalidated)
+            {
+                _logger.LogWarning("No cached IMDb ratings files were removed before retry");
+            }
+
+            try
+            {
+                var filePath = await downloader.GetRatingsFilePathAsync(cancellationToken).ConfigureAwait(false);
+                progress.Report(10);
+                return await parser.ParseAsync(filePath, cancellationToken).ConfigureAwait(false);
+            }
+            catch (InvalidDataException retryEx)
+            {
+                _logger.LogError(retryEx, "IMDb ratings data failed validation/decompression after retry");
+                throw;
+            }
+        }
     }
 
     private List<BaseItem> GetLibraryItems(PluginConfiguration config)

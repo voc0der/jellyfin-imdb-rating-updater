@@ -39,6 +39,17 @@ public class ImdbFlatFileDownloader
         return _cachePath;
     }
 
+    public bool InvalidateCache()
+    {
+        var invalidated = false;
+
+        invalidated |= TryDeleteFile(_cachePath);
+        // Clean up any stale temp file from a previous failed download attempt.
+        invalidated |= TryDeleteFile(_cachePath + ".tmp");
+
+        return invalidated;
+    }
+
     private bool IsCacheFresh()
     {
         if (!File.Exists(_cachePath))
@@ -80,15 +91,22 @@ public class ImdbFlatFileDownloader
         _logger.LogInformation("IMDb ratings file downloaded and decompressed to {Path}", _cachePath);
     }
 
-    private void TryDeleteFile(string path)
+    private bool TryDeleteFile(string path)
     {
         try
         {
+            if (!File.Exists(path))
+            {
+                return false;
+            }
+
             File.Delete(path);
+            return true;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to clean up temporary file {Path}", path);
+            _logger.LogWarning(ex, "Failed to delete cache file {Path}", path);
+            return false;
         }
     }
 }

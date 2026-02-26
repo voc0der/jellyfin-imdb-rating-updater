@@ -10,6 +10,10 @@ namespace Jellyfin.Plugin.ImdbRatings.Providers;
 
 public class ImdbRatingsParser
 {
+    private const string ExpectedHeader = "tconst\taverageRating\tnumVotes";
+    private const int MinExpectedRows = 500_000;
+    private const double MaxParseErrorRatio = 0.01;
+
     private readonly ILogger<ImdbRatingsParser> _logger;
 
     public ImdbRatingsParser(ILogger<ImdbRatingsParser> logger)
@@ -26,9 +30,9 @@ public class ImdbRatingsParser
 
         using var reader = new StreamReader(filePath);
 
-        // Validate header line: tconst\taverageRating\tnumVotes
+        // Validate header line exactly
         var header = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
-        if (header is null || !header.StartsWith("tconst\t", StringComparison.Ordinal))
+        if (!string.Equals(header, ExpectedHeader, StringComparison.Ordinal))
         {
             throw new InvalidDataException(
                 $"IMDb ratings file has an invalid or missing header: \"{header ?? "(empty file)"}\"");
@@ -65,7 +69,27 @@ public class ImdbRatingsParser
             ratings[tconst.ToString()] = (rating, votes);
         }
 
-        _logger.LogInformation("Parsed {Count} IMDb ratings ({Errors} parse errors)", lineCount, parseErrors);
+        _logger.LogInformation("Parsed {ValidRows} IMDb ratings from {Total} rows ({Errors} parse errors)",
+            ratings.Count, lineCount, parseErrors);
+
+        // Post-parse sanity checks
+        if (ratings.Count == 0)
+        {
+            throw new InvalidDataException("IMDb ratings file contains header but no valid data rows.");
+        }
+
+        if (ratings.Count < MinExpectedRows)
+        {
+            throw new InvalidDataException(
+                $"IMDb ratings file appears truncated: only {ratings.Count} valid rows (expected at least {MinExpectedRows}).");
+        }
+
+        if (lineCount > 0 && (double)parseErrors / lineCount > MaxParseErrorRatio)
+        {
+            throw new InvalidDataException(
+                $"IMDb ratings file appears corrupt: {parseErrors} parse errors out of {lineCount} rows ({(double)parseErrors / lineCount:P1}).");
+        }
+
         return ratings;
     }
 }
