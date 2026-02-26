@@ -8,6 +8,14 @@
     "overview": "Scheduled task that keeps Jellyfin community ratings in sync with IMDb",
     "versions": [
       {
+        "version": "1.0.0.10",
+        "changelog": "## What's Changed\n\n- Add opt-in sampled debug logging for per-item skip reasons (0298c33)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-imdb-rating-updater/compare/1.0.0.9...1.0.0.10\n",
+        "targetAbi": "10.11.6.0",
+        "sourceUrl": "https://github.com/voc0der/jellyfin-imdb-rating-updater/releases/download/1.0.0.10/IMDb_Ratings_1.0.0.10.zip",
+        "checksum": "2694991b1c0b97d73545f5874f5cf1b3",
+        "timestamp": "2026-02-26T21:42:34Z"
+      },
+      {
         "version": "1.0.0.9",
         "changelog": "## What's Changed\n\n- Throttle progress reporting to integer bucket boundaries (f3f7a02)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-imdb-rating-updater/compare/1.0.0.8...1.0.0.9\n",
         "targetAbi": "10.11.6.0",
