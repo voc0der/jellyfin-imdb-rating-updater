@@ -87,7 +87,7 @@ public class RefreshImdbRatingsTask : IScheduledTask
         }
 
         // Step 4: Identify items that need rating updates (without mutating in-memory state)
-        var pendingUpdates = new List<(BaseItem Item, float NewRating)>();
+        var pendingUpdates = new List<(BaseItem Item, BaseItem? Parent, float? OldRating, float NewRating)>();
         int skipped = 0;
         int notFound = 0;
 
@@ -121,7 +121,7 @@ public class RefreshImdbRatingsTask : IScheduledTask
                 }
                 else
                 {
-                    pendingUpdates.Add((item, newRating));
+                    pendingUpdates.Add((item, item.GetParent(), item.CommunityRating, newRating));
                 }
             }
 
@@ -135,26 +135,64 @@ public class RefreshImdbRatingsTask : IScheduledTask
             _logger.LogInformation("Batch saving {Count} updated ratings to database", pendingUpdates.Count);
 
             const int batchSize = 500;
-            var byParent = pendingUpdates.GroupBy(p => p.Item.GetParent()?.Id ?? Guid.Empty);
+            var byParent = pendingUpdates.GroupBy(p => p.Parent?.Id ?? Guid.Empty);
             int saved = 0;
 
             foreach (var group in byParent)
             {
-                var parent = group.First().Item.GetParent() ?? _libraryManager.RootFolder;
+                var parent = group.First().Parent;
 
                 foreach (var chunk in group.Chunk(batchSize))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    // Apply ratings immediately before persisting this chunk
-                    var chunkItems = new BaseItem[chunk.Length];
-                    for (int j = 0; j < chunk.Length; j++)
+                    if (parent is null)
                     {
-                        chunk[j].Item.CommunityRating = chunk[j].NewRating;
-                        chunkItems[j] = chunk[j].Item;
+                        // Preserve prior semantics for root/null-parent items.
+                        for (int j = 0; j < chunk.Length; j++)
+                        {
+                            chunk[j].Item.CommunityRating = chunk[j].NewRating;
+                            try
+                            {
+                                await _libraryManager.UpdateItemAsync(
+                                    chunk[j].Item,
+                                    chunk[j].Parent!, // Preserve prior behavior for root items with no parent.
+                                    ItemUpdateType.MetadataEdit,
+                                    cancellationToken).ConfigureAwait(false);
+                            }
+                            catch
+                            {
+                                chunk[j].Item.CommunityRating = chunk[j].OldRating;
+                                throw;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Apply ratings immediately before persisting this chunk.
+                        var chunkItems = new BaseItem[chunk.Length];
+                        for (int j = 0; j < chunk.Length; j++)
+                        {
+                            chunk[j].Item.CommunityRating = chunk[j].NewRating;
+                            chunkItems[j] = chunk[j].Item;
+                        }
+
+                        try
+                        {
+                            await _libraryManager.UpdateItemsAsync(chunkItems, parent, ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            // Revert this chunk's in-memory mutations if the batch save fails/cancels.
+                            for (int j = 0; j < chunk.Length; j++)
+                            {
+                                chunk[j].Item.CommunityRating = chunk[j].OldRating;
+                            }
+
+                            throw;
+                        }
                     }
 
-                    await _libraryManager.UpdateItemsAsync(chunkItems, parent, ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
                     saved += chunk.Length;
 
                     double saveProgress = 90 + (10.0 * saved / pendingUpdates.Count);
