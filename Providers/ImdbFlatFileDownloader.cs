@@ -11,6 +11,7 @@ namespace Jellyfin.Plugin.ImdbRatings.Providers;
 public class ImdbFlatFileDownloader
 {
     private const string ImdbRatingsUrl = "https://datasets.imdbws.com/title.ratings.tsv.gz";
+    private const long MaxDecompressedSize = 100 * 1024 * 1024; // 100 MB
     private static readonly TimeSpan CacheMaxAge = TimeSpan.FromHours(23);
 
     private readonly IHttpClientFactory _httpClientFactory;
@@ -79,7 +80,7 @@ public class ImdbFlatFileDownloader
             using var compressedStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             using var gzipStream = new GZipStream(compressedStream, CompressionMode.Decompress);
             using var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None);
-            await gzipStream.CopyToAsync(fileStream, cancellationToken).ConfigureAwait(false);
+            await CopyWithLimitAsync(gzipStream, fileStream, MaxDecompressedSize, cancellationToken).ConfigureAwait(false);
         }
         catch
         {
@@ -89,6 +90,25 @@ public class ImdbFlatFileDownloader
 
         File.Move(tempPath, _cachePath, overwrite: true);
         _logger.LogInformation("IMDb ratings file downloaded and decompressed to {Path}", _cachePath);
+    }
+
+    private static async Task CopyWithLimitAsync(Stream source, Stream destination, long maxBytes, CancellationToken cancellationToken)
+    {
+        var buffer = new byte[81920];
+        long totalBytes = 0;
+        int bytesRead;
+
+        while ((bytesRead = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+        {
+            totalBytes += bytesRead;
+            if (totalBytes > maxBytes)
+            {
+                throw new InvalidDataException(
+                    $"Decompressed data exceeded maximum allowed size of {maxBytes / (1024 * 1024)} MB.");
+            }
+
+            await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private bool TryDeleteFile(string path)

@@ -86,8 +86,8 @@ public class RefreshImdbRatingsTask : IScheduledTask
             return;
         }
 
-        // Step 4: Identify items that need rating updates
-        var itemsToUpdate = new List<BaseItem>();
+        // Step 4: Identify items that need rating updates (without mutating in-memory state)
+        var pendingUpdates = new List<(BaseItem Item, float NewRating)>();
         int skipped = 0;
         int notFound = 0;
 
@@ -121,8 +121,7 @@ public class RefreshImdbRatingsTask : IScheduledTask
                 }
                 else
                 {
-                    item.CommunityRating = newRating;
-                    itemsToUpdate.Add(item);
+                    pendingUpdates.Add((item, newRating));
                 }
             }
 
@@ -130,26 +129,35 @@ public class RefreshImdbRatingsTask : IScheduledTask
             progress.Report(progressPercent);
         }
 
-        // Step 5: Batch save updated items, grouped by parent and chunked
-        if (itemsToUpdate.Count > 0)
+        // Step 5: Apply ratings and batch save, grouped by parent and chunked
+        if (pendingUpdates.Count > 0)
         {
-            _logger.LogInformation("Batch saving {Count} updated ratings to database", itemsToUpdate.Count);
+            _logger.LogInformation("Batch saving {Count} updated ratings to database", pendingUpdates.Count);
 
             const int batchSize = 500;
-            var byParent = itemsToUpdate.GroupBy(i => i.GetParent()?.Id ?? Guid.Empty);
+            var byParent = pendingUpdates.GroupBy(p => p.Item.GetParent()?.Id ?? Guid.Empty);
             int saved = 0;
 
             foreach (var group in byParent)
             {
-                var parent = group.First().GetParent() ?? _libraryManager.RootFolder;
+                var parent = group.First().Item.GetParent() ?? _libraryManager.RootFolder;
 
                 foreach (var chunk in group.Chunk(batchSize))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    await _libraryManager.UpdateItemsAsync(chunk, parent, ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
+
+                    // Apply ratings immediately before persisting this chunk
+                    var chunkItems = new BaseItem[chunk.Length];
+                    for (int j = 0; j < chunk.Length; j++)
+                    {
+                        chunk[j].Item.CommunityRating = chunk[j].NewRating;
+                        chunkItems[j] = chunk[j].Item;
+                    }
+
+                    await _libraryManager.UpdateItemsAsync(chunkItems, parent, ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
                     saved += chunk.Length;
 
-                    double saveProgress = 90 + (10.0 * saved / itemsToUpdate.Count);
+                    double saveProgress = 90 + (10.0 * saved / pendingUpdates.Count);
                     progress.Report(saveProgress);
                 }
             }
@@ -157,7 +165,7 @@ public class RefreshImdbRatingsTask : IScheduledTask
 
         progress.Report(100);
         _logger.LogInformation("IMDb ratings refresh complete: {Updated} updated, {Skipped} skipped, {NotFound} not found",
-            itemsToUpdate.Count, skipped, notFound);
+            pendingUpdates.Count, skipped, notFound);
     }
 
     private async Task<Dictionary<string, (float Rating, int Votes)>> DownloadAndParseWithRetryAsync(
