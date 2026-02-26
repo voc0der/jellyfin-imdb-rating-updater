@@ -109,8 +109,8 @@
             config[pascalKey] = value;
         }
 
-        function getSanitizedMinimumVotesInput() {
-            var parsed = parseInt(document.querySelector('#txtMinimumVotes').value, 10);
+        function getSanitizedMinimumVotesInput(page) {
+            var parsed = parseInt(page.querySelector('#txtMinimumVotes').value, 10);
             if (!Number.isFinite(parsed)) {
                 return 1;
             }
@@ -126,8 +126,23 @@
             return parsed;
         }
 
-        document.querySelector('#ImdbRatingsConfigPage')
-            .addEventListener('pageshow', function () {
+        function isSaveButtonClick(event, page) {
+            var node = event.target;
+            while (node && node !== page) {
+                if (node.id === 'btnSave') {
+                    return true;
+                }
+
+                node = node.parentElement;
+            }
+
+            return false;
+        }
+
+        var page = document.querySelector('#ImdbRatingsConfigPage');
+
+        page.addEventListener('pageshow', function () {
+                var currentPage = this;
                 Dashboard.showLoadingMsg();
                 ApiClient.getPluginConfiguration(ImdbRatingsConfig.pluginId).then(function (config) {
                     var minimumVotes = parseInt(getConfigValue(config, 'MinimumVotes', 'minimumVotes', 1), 10);
@@ -135,10 +150,10 @@
                         minimumVotes = 1;
                     }
 
-                    document.querySelector('#txtMinimumVotes').value = minimumVotes;
-                    document.querySelector('#chkIncludeMovies').checked = !!getConfigValue(config, 'IncludeMovies', 'includeMovies', true);
-                    document.querySelector('#chkIncludeSeries').checked = !!getConfigValue(config, 'IncludeSeries', 'includeSeries', true);
-                    document.querySelector('#chkEnableItemDebugLogging').checked = !!getConfigValue(
+                    currentPage.querySelector('#txtMinimumVotes').value = minimumVotes;
+                    currentPage.querySelector('#chkIncludeMovies').checked = !!getConfigValue(config, 'IncludeMovies', 'includeMovies', true);
+                    currentPage.querySelector('#chkIncludeSeries').checked = !!getConfigValue(config, 'IncludeSeries', 'includeSeries', true);
+                    currentPage.querySelector('#chkEnableItemDebugLogging').checked = !!getConfigValue(
                         config,
                         'EnableItemDebugLogging',
                         'enableItemDebugLogging',
@@ -150,18 +165,22 @@
                 });
             });
 
-        document.querySelector('#btnSave')
-            .addEventListener('click', function () {
+        page.addEventListener('click', function (event) {
+                if (!isSaveButtonClick(event, this)) {
+                    return;
+                }
+
+                var currentPage = this;
                 Dashboard.showLoadingMsg();
                 ApiClient.getPluginConfiguration(ImdbRatingsConfig.pluginId).then(function (config) {
-                    setConfigValue(config, 'MinimumVotes', 'minimumVotes', getSanitizedMinimumVotesInput());
-                    setConfigValue(config, 'IncludeMovies', 'includeMovies', document.querySelector('#chkIncludeMovies').checked);
-                    setConfigValue(config, 'IncludeSeries', 'includeSeries', document.querySelector('#chkIncludeSeries').checked);
+                    setConfigValue(config, 'MinimumVotes', 'minimumVotes', getSanitizedMinimumVotesInput(currentPage));
+                    setConfigValue(config, 'IncludeMovies', 'includeMovies', currentPage.querySelector('#chkIncludeMovies').checked);
+                    setConfigValue(config, 'IncludeSeries', 'includeSeries', currentPage.querySelector('#chkIncludeSeries').checked);
                     setConfigValue(
                         config,
                         'EnableItemDebugLogging',
                         'enableItemDebugLogging',
-                        document.querySelector('#chkEnableItemDebugLogging').checked);
+                        currentPage.querySelector('#chkEnableItemDebugLogging').checked);
 
                     ApiClient.updatePluginConfiguration(ImdbRatingsConfig.pluginId, config).then(function (result) {
                         Dashboard.processPluginConfigurationUpdateResult(result);
