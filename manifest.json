@@ -8,6 +8,14 @@
     "overview": "Scheduled task that keeps Jellyfin community ratings in sync with IMDb",
     "versions": [
       {
+        "version": "1.0.0.8",
+        "changelog": "## What's Changed\n\n- Filter parsed IMDb ratings to library items for lower memory usage (b573c28)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-imdb-rating-updater/compare/1.0.0.7...1.0.0.8\n",
+        "targetAbi": "10.11.6.0",
+        "sourceUrl": "https://github.com/voc0der/jellyfin-imdb-rating-updater/releases/download/1.0.0.8/IMDb_Ratings_1.0.0.8.zip",
+        "checksum": "c9e942881ff9445c7a3046b2dc85375e",
+        "timestamp": "2026-02-26T21:37:41Z"
+      },
+      {
         "version": "1.0.0.7",
         "changelog": "## What's Changed\n\n- Support episode ratings and lower minimum vote threshold (15c4e31)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-imdb-rating-updater/compare/1.0.0.6...1.0.0.7\n",
         "targetAbi": "10.11.6.0",
