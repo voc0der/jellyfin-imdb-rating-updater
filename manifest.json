@@ -8,6 +8,14 @@
     "overview": "Scheduled task that keeps Jellyfin community ratings in sync with IMDb",
     "versions": [
       {
+        "version": "1.0.0.15",
+        "changelog": "## What's Changed\n\n- Scope config page queries to page element and use event delegation (9b065bf)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-imdb-rating-updater/compare/1.0.0.14...1.0.0.15\n",
+        "targetAbi": "10.11.6.0",
+        "sourceUrl": "https://github.com/voc0der/jellyfin-imdb-rating-updater/releases/download/1.0.0.15/IMDb_Ratings_1.0.0.15.zip",
+        "checksum": "de1fbe9cbec3d02039a574b64bfc11da",
+        "timestamp": "2026-02-26T23:17:58Z"
+      },
+      {
         "version": "1.0.0.14",
         "changelog": "## What's Changed\n\n- Fix config save to write matching key casing from API response (887daae)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-imdb-rating-updater/compare/1.0.0.13...1.0.0.14\n",
         "targetAbi": "10.11.6.0",
