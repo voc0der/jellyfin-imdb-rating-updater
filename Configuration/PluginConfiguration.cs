@@ -16,4 +16,6 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool IncludeMovies { get; set; } = true;
 
     public bool IncludeSeries { get; set; } = true;
+
+    public bool EnableItemDebugLogging { get; set; } = false;
 }

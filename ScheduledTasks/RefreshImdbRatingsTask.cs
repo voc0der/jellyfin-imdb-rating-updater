@@ -121,6 +121,10 @@ public class RefreshImdbRatingsTask : IScheduledTask
         int skippedBelowMinimumVotes = 0;
         int skippedUnchanged = 0;
         int notFound = 0;
+        const int debugSampleLimitPerCategory = 10;
+        bool enableItemDebugLogging = config.EnableItemDebugLogging && _logger.IsEnabled(LogLevel.Debug);
+        int loggedNotFoundDebugSamples = 0;
+        int loggedBelowMinimumDebugSamples = 0;
 
         for (int i = 0; i < items.Count; i++)
         {
@@ -135,12 +139,20 @@ public class RefreshImdbRatingsTask : IScheduledTask
             }
             else if (!ratings.TryGetValue(imdbId, out var ratingData))
             {
-                _logger.LogDebug("IMDb ID {ImdbId} not found in ratings file for \"{Name}\"", imdbId, item.Name);
+                if (enableItemDebugLogging && loggedNotFoundDebugSamples < debugSampleLimitPerCategory)
+                {
+                    loggedNotFoundDebugSamples++;
+                    _logger.LogDebug("IMDb ID {ImdbId} not found in ratings file for \"{Name}\"", imdbId, item.Name);
+                }
                 notFound++;
             }
             else if (ratingData.Votes < config.MinimumVotes)
             {
-                _logger.LogDebug("Skipping \"{Name}\" — {Votes} votes below minimum {MinVotes}", item.Name, ratingData.Votes, config.MinimumVotes);
+                if (enableItemDebugLogging && loggedBelowMinimumDebugSamples < debugSampleLimitPerCategory)
+                {
+                    loggedBelowMinimumDebugSamples++;
+                    _logger.LogDebug("Skipping \"{Name}\" — {Votes} votes below minimum {MinVotes}", item.Name, ratingData.Votes, config.MinimumVotes);
+                }
                 skippedBelowMinimumVotes++;
             }
             else
@@ -162,6 +174,27 @@ public class RefreshImdbRatingsTask : IScheduledTask
             {
                 lastScanProgressBucket = progressBucket;
                 progress.Report(progressPercent);
+            }
+        }
+
+        if (enableItemDebugLogging)
+        {
+            var suppressedNotFoundDebugLines = notFound - loggedNotFoundDebugSamples;
+            if (suppressedNotFoundDebugLines > 0)
+            {
+                _logger.LogDebug(
+                    "Suppressed {Count} additional per-item debug logs for IMDb IDs not found in ratings data (sample limit {SampleLimit})",
+                    suppressedNotFoundDebugLines,
+                    debugSampleLimitPerCategory);
+            }
+
+            var suppressedBelowMinimumDebugLines = skippedBelowMinimumVotes - loggedBelowMinimumDebugSamples;
+            if (suppressedBelowMinimumDebugLines > 0)
+            {
+                _logger.LogDebug(
+                    "Suppressed {Count} additional per-item debug logs for items below minimum votes (sample limit {SampleLimit})",
+                    suppressedBelowMinimumDebugLines,
+                    debugSampleLimitPerCategory);
             }
         }
 

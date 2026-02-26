@@ -41,6 +41,17 @@
                                 Update ratings for TV series and individual episodes in your library.
                             </div>
                         </div>
+
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label>
+                                <input id="chkEnableItemDebugLogging" type="checkbox" is="emby-checkbox" />
+                                <span>Enable Item Debug Logs</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">
+                                Off by default. When enabled, writes sampled per-item debug logs for troubleshooting
+                                missing IMDb rows and minimum-vote skips (can increase log volume and task duration).
+                            </div>
+                        </div>
                     </div>
 
                     <div class="verticalSection" style="margin-top: 2em;">
@@ -78,6 +89,7 @@
                     document.querySelector('#txtMinimumVotes').value = config.MinimumVotes;
                     document.querySelector('#chkIncludeMovies').checked = config.IncludeMovies;
                     document.querySelector('#chkIncludeSeries').checked = config.IncludeSeries;
+                    document.querySelector('#chkEnableItemDebugLogging').checked = !!config.EnableItemDebugLogging;
                     Dashboard.hideLoadingMsg();
                 }).catch(function (err) {
                     Dashboard.hideLoadingMsg();
@@ -92,6 +104,7 @@
                     config.MinimumVotes = parseInt(document.querySelector('#txtMinimumVotes').value, 10);
                     config.IncludeMovies = document.querySelector('#chkIncludeMovies').checked;
                     config.IncludeSeries = document.querySelector('#chkIncludeSeries').checked;
+                    config.EnableItemDebugLogging = document.querySelector('#chkEnableItemDebugLogging').checked;
 
                     ApiClient.updatePluginConfiguration(ImdbRatingsConfig.pluginId, config).then(function (result) {
                         Dashboard.processPluginConfigurationUpdateResult(result);
