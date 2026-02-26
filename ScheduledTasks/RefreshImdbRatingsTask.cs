@@ -113,6 +113,7 @@ public class RefreshImdbRatingsTask : IScheduledTask
             progress,
             cancellationToken).ConfigureAwait(false);
         progress.Report(30);
+        int lastScanProgressBucket = 30;
 
         // Step 4: Identify items that need rating updates (without mutating in-memory state)
         var pendingUpdates = new List<(BaseItem Item, BaseItem? Parent, float? OldRating, float NewRating)>();
@@ -156,8 +157,15 @@ public class RefreshImdbRatingsTask : IScheduledTask
             }
 
             double progressPercent = 30 + (60.0 * (i + 1) / items.Count);
-            progress.Report(progressPercent);
+            int progressBucket = (int)progressPercent;
+            if (progressBucket > lastScanProgressBucket)
+            {
+                lastScanProgressBucket = progressBucket;
+                progress.Report(progressPercent);
+            }
         }
+
+        progress.Report(90);
 
         // Step 5: Apply ratings and batch save, grouped by parent and chunked
         if (pendingUpdates.Count > 0)
@@ -167,6 +175,7 @@ public class RefreshImdbRatingsTask : IScheduledTask
             const int batchSize = 500;
             var byParent = pendingUpdates.GroupBy(p => p.Parent?.Id ?? Guid.Empty);
             int saved = 0;
+            int lastSaveProgressBucket = 90;
 
             foreach (var group in byParent)
             {
@@ -226,7 +235,12 @@ public class RefreshImdbRatingsTask : IScheduledTask
                     saved += chunk.Length;
 
                     double saveProgress = 90 + (10.0 * saved / pendingUpdates.Count);
-                    progress.Report(saveProgress);
+                    int saveProgressBucket = (int)saveProgress;
+                    if (saveProgressBucket > lastSaveProgressBucket)
+                    {
+                        lastSaveProgressBucket = saveProgressBucket;
+                        progress.Report(saveProgress);
+                    }
                 }
             }
         }
