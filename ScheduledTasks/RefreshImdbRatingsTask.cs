@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -85,8 +86,8 @@ public class RefreshImdbRatingsTask : IScheduledTask
             return;
         }
 
-        // Step 4: Update ratings
-        int updated = 0;
+        // Step 4: Identify items that need rating updates
+        var itemsToUpdate = new List<BaseItem>();
         int skipped = 0;
         int notFound = 0;
 
@@ -121,18 +122,42 @@ public class RefreshImdbRatingsTask : IScheduledTask
                 else
                 {
                     item.CommunityRating = newRating;
-                    await _libraryManager.UpdateItemAsync(item, item.GetParent(), ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
-                    updated++;
+                    itemsToUpdate.Add(item);
                 }
             }
 
-            double progressPercent = 30 + (70.0 * (i + 1) / items.Count);
+            double progressPercent = 30 + (60.0 * (i + 1) / items.Count);
             progress.Report(progressPercent);
+        }
+
+        // Step 5: Batch save updated items, grouped by parent and chunked
+        if (itemsToUpdate.Count > 0)
+        {
+            _logger.LogInformation("Batch saving {Count} updated ratings to database", itemsToUpdate.Count);
+
+            const int batchSize = 500;
+            var byParent = itemsToUpdate.GroupBy(i => i.GetParent()?.Id ?? Guid.Empty);
+            int saved = 0;
+
+            foreach (var group in byParent)
+            {
+                var parent = group.First().GetParent() ?? _libraryManager.RootFolder;
+
+                foreach (var chunk in group.Chunk(batchSize))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await _libraryManager.UpdateItemsAsync(chunk, parent, ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
+                    saved += chunk.Length;
+
+                    double saveProgress = 90 + (10.0 * saved / itemsToUpdate.Count);
+                    progress.Report(saveProgress);
+                }
+            }
         }
 
         progress.Report(100);
         _logger.LogInformation("IMDb ratings refresh complete: {Updated} updated, {Skipped} skipped, {NotFound} not found",
-            updated, skipped, notFound);
+            itemsToUpdate.Count, skipped, notFound);
     }
 
     private async Task<Dictionary<string, (float Rating, int Votes)>> DownloadAndParseWithRetryAsync(
