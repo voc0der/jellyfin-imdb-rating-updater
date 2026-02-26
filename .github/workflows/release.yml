@@ -1,0 +1,155 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0  # Fetch all history for changelog generation
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v6
+      with:
+        name: Jellyfin.Plugin.ImdbRatings
+        path: bin/Release/net8.0/Jellyfin.Plugin.ImdbRatings.dll
+
+    - name: Generate version and changelog
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      id: version
+      run: |
+        # Get the latest tag, or use 1.0.0.0 if none exists
+        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "1.0.0.0")
+        echo "Latest tag: $LATEST_TAG"
+
+        # Extract version numbers (4-part semantic versioning)
+        IFS='.' read -ra VERSION_PARTS <<< "$LATEST_TAG"
+        MAJOR=${VERSION_PARTS[0]:-1}
+        MINOR=${VERSION_PARTS[1]:-0}
+        BUILD=${VERSION_PARTS[2]:-0}
+        REVISION=${VERSION_PARTS[3]:-0}
+
+        # Increment revision for each commit
+        REVISION=$((REVISION + 1))
+        NEW_VERSION="${MAJOR}.${MINOR}.${BUILD}.${REVISION}"
+
+        echo "New version: $NEW_VERSION"
+        echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+        # Generate changelog from commits since last tag
+        echo "## What's Changed" > CHANGELOG.md
+        echo "" >> CHANGELOG.md
+
+        if [ "$LATEST_TAG" != "1.0.0.0" ] || git rev-parse "$LATEST_TAG" >/dev/null 2>&1; then
+          git log ${LATEST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges >> CHANGELOG.md
+        else
+          git log --pretty=format:"- %s (%h)" --no-merges >> CHANGELOG.md
+        fi
+
+        echo "" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LATEST_TAG}...${NEW_VERSION}" >> CHANGELOG.md
+
+        cat CHANGELOG.md
+
+    - name: Rebuild with version
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        VERSION=${{ steps.version.outputs.version }}
+        # Strip 'v' prefix for assembly version
+        VERSION_NO_V="${VERSION#v}"
+
+        # Rebuild with correct version embedded in assembly
+        dotnet build --configuration Release --no-restore \
+          -p:AssemblyVersion="${VERSION_NO_V}" \
+          -p:FileVersion="${VERSION_NO_V}" \
+          -p:Version="${VERSION_NO_V}"
+
+    - name: Package plugin
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        VERSION=${{ steps.version.outputs.version }}
+        # Strip 'v' prefix for folder name (Jellyfin expects folder without 'v')
+        VERSION_NO_V="${VERSION#v}"
+        FOLDER_NAME="IMDb_Ratings_${VERSION_NO_V}"
+        ZIP_NAME="IMDb_Ratings_${VERSION}.zip"
+
+        # Create versioned folder structure
+        mkdir -p "release/${FOLDER_NAME}"
+        cp bin/Release/net8.0/Jellyfin.Plugin.ImdbRatings.dll "release/${FOLDER_NAME}/"
+
+        # Create ZIP
+        cd release
+        zip -r "../${ZIP_NAME}" "${FOLDER_NAME}"
+        cd ..
+
+        echo "Created ${ZIP_NAME}"
+        ls -lh "${ZIP_NAME}"
+
+    - name: Update manifest.json
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        VERSION=${{ steps.version.outputs.version }}
+        # Strip 'v' prefix for manifest.json version field (Jellyfin requires semantic version without 'v')
+        MANIFEST_VERSION="${VERSION#v}"
+        ZIP_NAME="IMDb_Ratings_${VERSION}.zip"
+        CHECKSUM=$(md5sum "${ZIP_NAME}" | awk '{print $1}')
+        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        REPO="${{ github.repository }}"
+
+        jq --arg version "$MANIFEST_VERSION" \
+           --rawfile changelog CHANGELOG.md \
+           --arg checksum "$CHECKSUM" \
+           --arg timestamp "$TIMESTAMP" \
+           --arg url "https://github.com/${REPO}/releases/download/${VERSION}/${ZIP_NAME}" \
+           '.[0].versions = [{
+             "version": $version,
+             "changelog": $changelog,
+             "targetAbi": "10.10.7.0",
+             "sourceUrl": $url,
+             "checksum": $checksum,
+             "timestamp": $timestamp
+           }] + .[0].versions' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
+
+    - name: Commit updated manifest
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        git config user.name "voc0der"
+        git config user.email "contact@netspace.in"
+        git add manifest.json
+        git commit -m "Update manifest.json for version ${{ steps.version.outputs.version }}" || echo "No changes to commit"
+        git push || echo "No changes to push"
+
+    - name: Create Release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        VERSION=${{ steps.version.outputs.version }}
+        ZIP_NAME="IMDb_Ratings_${VERSION}.zip"
+
+        gh release create "$VERSION" \
+          --title "Release $VERSION" \
+          --notes-file CHANGELOG.md \
+          "${ZIP_NAME}"

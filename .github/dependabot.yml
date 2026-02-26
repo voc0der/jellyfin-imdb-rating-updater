@@ -1,0 +1,34 @@
+version: 2
+updates:
+  # Keep GitHub Actions up to date
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  # Keep NuGet packages up to date (requires careful review)
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "nuget"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    # Group Jellyfin packages together since they need to match versions
+    groups:
+      jellyfin-packages:
+        patterns:
+          - "Jellyfin.*"

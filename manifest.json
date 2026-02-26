@@ -1,0 +1,20 @@
+[
+  {
+    "category": "Metadata",
+    "guid": "f5a3c7e1-9b2d-4f6a-8e0c-1d3b5a7c9e2f",
+    "name": "IMDb Ratings",
+    "description": "Downloads the IMDb ratings flat file daily and updates CommunityRating on all library items with an IMDb ID, without touching any other metadata.",
+    "owner": "voc0der",
+    "overview": "Scheduled task that keeps Jellyfin community ratings in sync with IMDb",
+    "versions": [
+      {
+        "version": "1.0.0.0",
+        "changelog": "Initial release\n- Daily scheduled task with manual trigger\n- IMDb flat file download with 23-hour cache\n- Minimum votes threshold\n- Configurable library types (Movies, TV Series)\n- Web UI configuration page",
+        "targetAbi": "10.10.7.0",
+        "sourceUrl": "https://github.com/voc0der/jellyfin-imdb-rating-updater/releases/download/1.0.0.0/IMDb_Ratings_1.0.0.0.zip",
+        "checksum": "PLACEHOLDER",
+        "timestamp": "2026-02-26T00:00:00Z"
+      }
+    ]
+  }
+]

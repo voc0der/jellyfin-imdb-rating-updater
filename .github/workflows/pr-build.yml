@@ -1,0 +1,92 @@
+name: PR Develop Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Pull request number to build (example: 1)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Validate PR input
+      shell: bash
+      run: |
+        PR_NUMBER="${{ github.event.inputs.pr_number }}"
+        if ! [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
+          echo "Invalid pr_number input: ${PR_NUMBER}"
+          exit 1
+        fi
+
+    - name: Checkout PR branch
+      shell: bash
+      run: |
+        PR_NUMBER="${{ github.event.inputs.pr_number }}"
+        git fetch origin "pull/${PR_NUMBER}/head:pr-${PR_NUMBER}"
+        git checkout "pr-${PR_NUMBER}"
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Set build metadata
+      shell: bash
+      run: |
+        PR_NUMBER="${{ github.event.inputs.pr_number }}"
+        BUILD_TAG="pr/${PR_NUMBER}"
+        SAFE_TAG="pr-${PR_NUMBER}"
+        FOLDER_NAME="IMDb_Ratings_${SAFE_TAG}_develop"
+        ZIP_NAME="${FOLDER_NAME}.zip"
+
+        echo "PR_NUMBER=${PR_NUMBER}" >> "$GITHUB_ENV"
+        echo "BUILD_TAG=${BUILD_TAG}" >> "$GITHUB_ENV"
+        echo "SAFE_TAG=${SAFE_TAG}" >> "$GITHUB_ENV"
+        echo "FOLDER_NAME=${FOLDER_NAME}" >> "$GITHUB_ENV"
+        echo "ZIP_NAME=${ZIP_NAME}" >> "$GITHUB_ENV"
+
+    - name: Build PR
+      run: |
+        dotnet build --configuration Release --no-restore \
+          -p:InformationalVersion="${BUILD_TAG}"
+
+    - name: Package PR build
+      shell: bash
+      run: |
+        mkdir -p "release/${FOLDER_NAME}"
+        cp bin/Release/net8.0/Jellyfin.Plugin.ImdbRatings.dll "release/${FOLDER_NAME}/"
+        echo "${BUILD_TAG}" > "release/${FOLDER_NAME}/BUILD_TAG.txt"
+        cd release
+        zip -r "../${ZIP_NAME}" "${FOLDER_NAME}"
+
+    - name: Upload zip artifact
+      uses: actions/upload-artifact@v6
+      with:
+        name: "${{ env.FOLDER_NAME }}"
+        path: "${{ env.ZIP_NAME }}"
+        if-no-files-found: error
+
+    - name: Build summary
+      shell: bash
+      run: |
+        {
+          echo "### PR develop build complete"
+          echo ""
+          echo "- PR: #${PR_NUMBER}"
+          echo "- Build tag: \`${BUILD_TAG}\`"
+          echo "- Artifact: \`${ZIP_NAME}\`"
+        } >> "$GITHUB_STEP_SUMMARY"

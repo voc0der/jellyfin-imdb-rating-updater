@@ -1,0 +1,28 @@
+name: Lint
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Check whitespace formatting
+      run: dotnet format whitespace --verify-no-changes --verbosity minimal
+
+    - name: Check C# style formatting
+      run: dotnet format style --verify-no-changes --severity warn --verbosity minimal
