@@ -68,7 +68,7 @@
                     </div>
 
                     <div>
-                        <button id="btnSave" is="emby-button" type="button" class="raised button-submit block">
+                        <button id="btnSave" is="emby-button" type="submit" class="raised button-submit block">
                             <span>Save</span>
                         </button>
                     </div>
@@ -105,12 +105,11 @@
                 return;
             }
 
-            // If the API omitted the property entirely, fall back to CLR/PascalCase.
             config[pascalKey] = value;
         }
 
-        function getSanitizedMinimumVotesInput(page) {
-            var parsed = parseInt(page.querySelector('#txtMinimumVotes').value, 10);
+        function getSanitizedMinimumVotesInput() {
+            var parsed = parseInt(document.getElementById('txtMinimumVotes').value, 10);
             if (!Number.isFinite(parsed)) {
                 return 1;
             }
@@ -126,73 +125,56 @@
             return parsed;
         }
 
-        function isSaveButtonClick(event, page) {
-            var node = event.target;
-            while (node && node !== page) {
-                if (node.id === 'btnSave') {
-                    return true;
+        document.getElementById('ImdbRatingsConfigPage').addEventListener('pageshow', function () {
+            Dashboard.showLoadingMsg();
+            ApiClient.getPluginConfiguration(ImdbRatingsConfig.pluginId).then(function (config) {
+                var minimumVotes = parseInt(getConfigValue(config, 'MinimumVotes', 'minimumVotes', 1), 10);
+                if (!Number.isFinite(minimumVotes) || minimumVotes < 1) {
+                    minimumVotes = 1;
                 }
 
-                node = node.parentElement;
-            }
+                document.getElementById('txtMinimumVotes').value = minimumVotes;
+                document.getElementById('chkIncludeMovies').checked = !!getConfigValue(config, 'IncludeMovies', 'includeMovies', true);
+                document.getElementById('chkIncludeSeries').checked = !!getConfigValue(config, 'IncludeSeries', 'includeSeries', true);
+                document.getElementById('chkEnableItemDebugLogging').checked = !!getConfigValue(
+                    config,
+                    'EnableItemDebugLogging',
+                    'enableItemDebugLogging',
+                    false);
+                Dashboard.hideLoadingMsg();
+            }).catch(function () {
+                Dashboard.hideLoadingMsg();
+                Dashboard.alert('Failed to load IMDb Ratings configuration.');
+            });
+        });
+
+        document.getElementById('ImdbRatingsConfigForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            Dashboard.showLoadingMsg();
+
+            ApiClient.getPluginConfiguration(ImdbRatingsConfig.pluginId).then(function (config) {
+                setConfigValue(config, 'MinimumVotes', 'minimumVotes', getSanitizedMinimumVotesInput());
+                setConfigValue(config, 'IncludeMovies', 'includeMovies', document.getElementById('chkIncludeMovies').checked);
+                setConfigValue(config, 'IncludeSeries', 'includeSeries', document.getElementById('chkIncludeSeries').checked);
+                setConfigValue(
+                    config,
+                    'EnableItemDebugLogging',
+                    'enableItemDebugLogging',
+                    document.getElementById('chkEnableItemDebugLogging').checked);
+
+                ApiClient.updatePluginConfiguration(ImdbRatingsConfig.pluginId, config).then(function (result) {
+                    Dashboard.processPluginConfigurationUpdateResult(result);
+                }).catch(function () {
+                    Dashboard.hideLoadingMsg();
+                    Dashboard.alert('Failed to save IMDb Ratings configuration.');
+                });
+            }).catch(function () {
+                Dashboard.hideLoadingMsg();
+                Dashboard.alert('Failed to load IMDb Ratings configuration.');
+            });
 
             return false;
-        }
-
-        var page = document.querySelector('#ImdbRatingsConfigPage');
-
-        page.addEventListener('pageshow', function () {
-                var currentPage = this;
-                Dashboard.showLoadingMsg();
-                ApiClient.getPluginConfiguration(ImdbRatingsConfig.pluginId).then(function (config) {
-                    var minimumVotes = parseInt(getConfigValue(config, 'MinimumVotes', 'minimumVotes', 1), 10);
-                    if (!Number.isFinite(minimumVotes) || minimumVotes < 1) {
-                        minimumVotes = 1;
-                    }
-
-                    currentPage.querySelector('#txtMinimumVotes').value = minimumVotes;
-                    currentPage.querySelector('#chkIncludeMovies').checked = !!getConfigValue(config, 'IncludeMovies', 'includeMovies', true);
-                    currentPage.querySelector('#chkIncludeSeries').checked = !!getConfigValue(config, 'IncludeSeries', 'includeSeries', true);
-                    currentPage.querySelector('#chkEnableItemDebugLogging').checked = !!getConfigValue(
-                        config,
-                        'EnableItemDebugLogging',
-                        'enableItemDebugLogging',
-                        false);
-                    Dashboard.hideLoadingMsg();
-                }).catch(function (err) {
-                    Dashboard.hideLoadingMsg();
-                    Dashboard.alert('Failed to load IMDb Ratings configuration.');
-                });
-            });
-
-        page.addEventListener('click', function (event) {
-                if (!isSaveButtonClick(event, this)) {
-                    return;
-                }
-
-                var currentPage = this;
-                Dashboard.showLoadingMsg();
-                ApiClient.getPluginConfiguration(ImdbRatingsConfig.pluginId).then(function (config) {
-                    setConfigValue(config, 'MinimumVotes', 'minimumVotes', getSanitizedMinimumVotesInput(currentPage));
-                    setConfigValue(config, 'IncludeMovies', 'includeMovies', currentPage.querySelector('#chkIncludeMovies').checked);
-                    setConfigValue(config, 'IncludeSeries', 'includeSeries', currentPage.querySelector('#chkIncludeSeries').checked);
-                    setConfigValue(
-                        config,
-                        'EnableItemDebugLogging',
-                        'enableItemDebugLogging',
-                        currentPage.querySelector('#chkEnableItemDebugLogging').checked);
-
-                    ApiClient.updatePluginConfiguration(ImdbRatingsConfig.pluginId, config).then(function (result) {
-                        Dashboard.processPluginConfigurationUpdateResult(result);
-                    }).catch(function (err) {
-                        Dashboard.hideLoadingMsg();
-                        Dashboard.alert('Failed to save IMDb Ratings configuration.');
-                    });
-                }).catch(function (err) {
-                    Dashboard.hideLoadingMsg();
-                    Dashboard.alert('Failed to load IMDb Ratings configuration.');
-                });
-            });
+        });
     </script>
 </body>
 </html>

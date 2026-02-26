@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Buffers.Text;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -132,7 +133,6 @@ public class ImdbRatingsParser
                         }
 
                         ProcessLine(lineBytes);
-                        bufferedCount = 0;
                     }
 
                     break;
@@ -250,16 +250,15 @@ public class ImdbRatingsParser
 
     private static HashSet<ulong> BuildNumericIdSet(IReadOnlySet<string> includeIds)
     {
-        var numericIds = new HashSet<ulong>();
-        foreach (var includeId in includeIds)
-        {
-            if (TryParseImdbIdNumber(includeId, out var numericId))
-            {
-                numericIds.Add(numericId);
-            }
-        }
+        return includeIds
+            .Select(static includeId => ParseImdbIdNumberOrNull(includeId))
+            .OfType<ulong>()
+            .ToHashSet();
+    }
 
-        return numericIds;
+    private static ulong? ParseImdbIdNumberOrNull(string imdbId)
+    {
+        return TryParseImdbIdNumber(imdbId, out var numericId) ? numericId : null;
     }
 
     private static bool TryParseImdbIdNumber(string imdbId, out ulong numericId)
