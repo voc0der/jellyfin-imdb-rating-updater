@@ -8,6 +8,14 @@
     "overview": "Scheduled task that keeps Jellyfin community ratings in sync with IMDb",
     "versions": [
       {
+        "version": "1.0.0.6",
+        "changelog": "## What's Changed\n\n- Replace Path.Combine to avoid CodeQL path warnings (dcc9681)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-imdb-rating-updater/compare/1.0.0.5...1.0.0.6\n",
+        "targetAbi": "10.11.6.0",
+        "sourceUrl": "https://github.com/voc0der/jellyfin-imdb-rating-updater/releases/download/1.0.0.6/IMDb_Ratings_1.0.0.6.zip",
+        "checksum": "0b2e96bba0d97920f3eed6fb45eeca51",
+        "timestamp": "2026-02-26T18:19:38Z"
+      },
+      {
         "version": "1.0.0.5",
         "changelog": "## What's Changed\n\n- Fix CodeQL findings in IMDb downloader (fb153b9)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-imdb-rating-updater/compare/1.0.0.4...1.0.0.5\n",
         "targetAbi": "10.11.6.0",
