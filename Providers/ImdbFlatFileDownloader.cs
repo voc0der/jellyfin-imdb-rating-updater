@@ -27,8 +27,8 @@ public class ImdbFlatFileDownloader
 
         _httpClientFactory = httpClientFactory;
         _logger = logger;
-        var cacheDirectoryPath = Path.Combine(dataPath, "imdb-ratings-cache");
-        _cachePath = Path.Combine(cacheDirectoryPath, "title.ratings.tsv");
+        var cacheDirectoryPath = Path.Join(dataPath, "imdb-ratings-cache");
+        _cachePath = Path.Join(cacheDirectoryPath, "title.ratings.tsv");
     }
 
     public string CachePath => _cachePath;
