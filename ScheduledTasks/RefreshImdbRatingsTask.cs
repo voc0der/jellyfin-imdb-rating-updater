@@ -65,26 +65,54 @@ public class RefreshImdbRatingsTask : IScheduledTask
         _logger.LogInformation("Starting IMDb ratings refresh (minVotes={MinVotes}, movies={Movies}, series={Series})",
             config.MinimumVotes, config.IncludeMovies, config.IncludeSeries);
 
-        // Step 1: Download/cache the ratings file, Step 2: Parse ratings
+        // Step 1: Query library items and build a distinct IMDb ID filter set.
         progress.Report(0);
+        var items = GetLibraryItems(config);
+        if (items.Count == 0)
+        {
+            _logger.LogInformation("Found 0 library items with IMDb IDs");
+            progress.Report(100);
+            return;
+        }
+
+        var libraryImdbIds = new HashSet<string>(StringComparer.Ordinal);
+        for (int i = 0; i < items.Count; i++)
+        {
+            var imdbId = items[i].GetProviderId(MediaBrowser.Model.Entities.MetadataProvider.Imdb);
+            if (!string.IsNullOrWhiteSpace(imdbId))
+            {
+                libraryImdbIds.Add(imdbId);
+            }
+        }
+
+        _logger.LogInformation(
+            "Found {ItemCount} library items with IMDb IDs ({DistinctIdCount} distinct IDs)",
+            items.Count,
+            libraryImdbIds.Count);
+
+        if (libraryImdbIds.Count == 0)
+        {
+            _logger.LogWarning("No valid IMDb IDs found on selected library items — nothing to update");
+            progress.Report(100);
+            return;
+        }
+
+        progress.Report(5);
+
+        // Step 2: Download/cache the ratings file, Step 3: Parse ratings (filtered to library IMDb IDs)
         var downloader = new ImdbFlatFileDownloader(
             _httpClientFactory,
             _loggerFactory.CreateLogger<ImdbFlatFileDownloader>(),
             _dataPath);
         var parser = new ImdbRatingsParser(_loggerFactory.CreateLogger<ImdbRatingsParser>());
 
-        var ratings = await DownloadAndParseWithRetryAsync(downloader, parser, progress, cancellationToken).ConfigureAwait(false);
+        var ratings = await DownloadAndParseWithRetryAsync(
+            downloader,
+            parser,
+            libraryImdbIds,
+            progress,
+            cancellationToken).ConfigureAwait(false);
         progress.Report(30);
-
-        // Step 3: Get library items
-        var items = GetLibraryItems(config);
-        _logger.LogInformation("Found {Count} library items with IMDb IDs", items.Count);
-
-        if (items.Count == 0)
-        {
-            progress.Report(100);
-            return;
-        }
 
         // Step 4: Identify items that need rating updates (without mutating in-memory state)
         var pendingUpdates = new List<(BaseItem Item, BaseItem? Parent, float? OldRating, float NewRating)>();
@@ -218,6 +246,7 @@ public class RefreshImdbRatingsTask : IScheduledTask
     private async Task<Dictionary<string, (float Rating, int Votes)>> DownloadAndParseWithRetryAsync(
         ImdbFlatFileDownloader downloader,
         ImdbRatingsParser parser,
+        IReadOnlySet<string> includeImdbIds,
         IProgress<double> progress,
         CancellationToken cancellationToken)
     {
@@ -225,7 +254,7 @@ public class RefreshImdbRatingsTask : IScheduledTask
         {
             var filePath = await GetRatingsFilePathWithTransientRetryAsync(downloader, cancellationToken).ConfigureAwait(false);
             progress.Report(10);
-            return await parser.ParseAsync(filePath, cancellationToken).ConfigureAwait(false);
+            return await parser.ParseFilteredAsync(filePath, includeImdbIds, cancellationToken).ConfigureAwait(false);
         }
         catch (InvalidDataException ex)
         {
@@ -234,13 +263,19 @@ public class RefreshImdbRatingsTask : IScheduledTask
                 "IMDb ratings data failed validation on first attempt; invalidating cache and retrying");
 
             downloader.InvalidateCache();
-            return await RetryDownloadAndParseAsync(downloader, parser, progress, cancellationToken).ConfigureAwait(false);
+            return await RetryDownloadAndParseAsync(
+                downloader,
+                parser,
+                includeImdbIds,
+                progress,
+                cancellationToken).ConfigureAwait(false);
         }
     }
 
     private async Task<Dictionary<string, (float Rating, int Votes)>> RetryDownloadAndParseAsync(
         ImdbFlatFileDownloader downloader,
         ImdbRatingsParser parser,
+        IReadOnlySet<string> includeImdbIds,
         IProgress<double> progress,
         CancellationToken cancellationToken)
     {
@@ -248,7 +283,7 @@ public class RefreshImdbRatingsTask : IScheduledTask
         {
             var filePath = await downloader.GetRatingsFilePathAsync(cancellationToken).ConfigureAwait(false);
             progress.Report(10);
-            return await parser.ParseAsync(filePath, cancellationToken).ConfigureAwait(false);
+            return await parser.ParseFilteredAsync(filePath, includeImdbIds, cancellationToken).ConfigureAwait(false);
         }
         catch (InvalidDataException retryEx)
         {

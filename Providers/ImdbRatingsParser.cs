@@ -26,7 +26,29 @@ public class ImdbRatingsParser
     /// </summary>
     public async Task<Dictionary<string, (float Rating, int Votes)>> ParseAsync(string filePath, CancellationToken cancellationToken)
     {
-        var ratings = new Dictionary<string, (float Rating, int Votes)>(1_200_000);
+        return await ParseInternalAsync(filePath, includeIds: null, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Parses the IMDb TSV file and retains only rows whose tconst is in <paramref name="includeIds"/>.
+    /// Full-file validation still runs on all rows.
+    /// </summary>
+    public async Task<Dictionary<string, (float Rating, int Votes)>> ParseFilteredAsync(
+        string filePath,
+        IReadOnlySet<string> includeIds,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(includeIds);
+        return await ParseInternalAsync(filePath, includeIds, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<Dictionary<string, (float Rating, int Votes)>> ParseInternalAsync(
+        string filePath,
+        IReadOnlySet<string>? includeIds,
+        CancellationToken cancellationToken)
+    {
+        var initialCapacity = includeIds is null ? 1_200_000 : Math.Max(includeIds.Count, 16);
+        var ratings = new Dictionary<string, (float Rating, int Votes)>(initialCapacity);
 
         using var reader = new StreamReader(filePath);
 
@@ -39,6 +61,7 @@ public class ImdbRatingsParser
         }
 
         int lineCount = 0;
+        int validRows = 0;
         int parseErrors = 0;
 
         while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
@@ -66,22 +89,37 @@ public class ImdbRatingsParser
                 continue;
             }
 
-            ratings[tconst.ToString()] = (rating, votes);
+            validRows++;
+
+            var tconstKey = tconst.ToString();
+            if (includeIds is null || includeIds.Contains(tconstKey))
+            {
+                ratings[tconstKey] = (rating, votes);
+            }
         }
 
-        _logger.LogInformation("Parsed {ValidRows} IMDb ratings from {Total} rows ({Errors} parse errors)",
-            ratings.Count, lineCount, parseErrors);
+        if (includeIds is null)
+        {
+            _logger.LogInformation("Parsed {ValidRows} IMDb ratings from {Total} rows ({Errors} parse errors)",
+                ratings.Count, lineCount, parseErrors);
+        }
+        else
+        {
+            _logger.LogInformation(
+                "Parsed {MatchedRows} matching IMDb ratings from {ValidRows} valid rows in {Total} rows ({Errors} parse errors)",
+                ratings.Count, validRows, lineCount, parseErrors);
+        }
 
         // Post-parse sanity checks
-        if (ratings.Count == 0)
+        if (validRows == 0)
         {
             throw new InvalidDataException("IMDb ratings file contains header but no valid data rows.");
         }
 
-        if (ratings.Count < MinExpectedRows)
+        if (validRows < MinExpectedRows)
         {
             throw new InvalidDataException(
-                $"IMDb ratings file appears truncated: only {ratings.Count} valid rows (expected at least {MinExpectedRows}).");
+                $"IMDb ratings file appears truncated: only {validRows} valid rows (expected at least {MinExpectedRows}).");
         }
 
         if (lineCount > 0 && (double)parseErrors / lineCount > MaxParseErrorRatio)
