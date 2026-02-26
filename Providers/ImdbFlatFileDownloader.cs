@@ -28,6 +28,10 @@ public class ImdbFlatFileDownloader
         _cachePath = Path.Combine(dataPath, "imdb-ratings-cache", "title.ratings.tsv");
     }
 
+    public string CachePath => _cachePath;
+
+    public bool HasCacheFile => File.Exists(_cachePath);
+
     public async Task<string> GetRatingsFilePathAsync(CancellationToken cancellationToken)
     {
         if (IsCacheFresh())

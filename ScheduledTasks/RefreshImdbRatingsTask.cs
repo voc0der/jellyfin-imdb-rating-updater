@@ -214,33 +214,79 @@ public class RefreshImdbRatingsTask : IScheduledTask
     {
         try
         {
-            var filePath = await downloader.GetRatingsFilePathAsync(cancellationToken).ConfigureAwait(false);
+            var filePath = await GetRatingsFilePathWithTransientRetryAsync(downloader, cancellationToken).ConfigureAwait(false);
             progress.Report(10);
             return await parser.ParseAsync(filePath, cancellationToken).ConfigureAwait(false);
         }
         catch (InvalidDataException ex)
         {
+            // Bad data on disk — invalidate cache and re-download.
             _logger.LogWarning(ex,
-                "IMDb ratings data failed validation/decompression on first attempt; invalidating cache and retrying once");
+                "IMDb ratings data failed validation on first attempt; invalidating cache and retrying");
 
-            var invalidated = downloader.InvalidateCache();
-            if (!invalidated)
-            {
-                _logger.LogWarning("No cached IMDb ratings files were removed before retry");
-            }
+            downloader.InvalidateCache();
+            return await RetryDownloadAndParseAsync(downloader, parser, progress, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task<Dictionary<string, (float Rating, int Votes)>> RetryDownloadAndParseAsync(
+        ImdbFlatFileDownloader downloader,
+        ImdbRatingsParser parser,
+        IProgress<double> progress,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var filePath = await downloader.GetRatingsFilePathAsync(cancellationToken).ConfigureAwait(false);
+            progress.Report(10);
+            return await parser.ParseAsync(filePath, cancellationToken).ConfigureAwait(false);
+        }
+        catch (InvalidDataException retryEx)
+        {
+            _logger.LogError(retryEx, "IMDb ratings data failed validation after retry");
+            throw;
+        }
+    }
+
+    private async Task<string> GetRatingsFilePathWithTransientRetryAsync(
+        ImdbFlatFileDownloader downloader,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await downloader.GetRatingsFilePathAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (IsTransientNetworkError(ex))
+        {
+            // Transient download error — try once more after a short delay, or fall back to stale cache.
+            _logger.LogWarning(ex, "Transient network error downloading IMDb ratings; retrying once after delay");
+
+            await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken).ConfigureAwait(false);
 
             try
             {
-                var filePath = await downloader.GetRatingsFilePathAsync(cancellationToken).ConfigureAwait(false);
-                progress.Report(10);
-                return await parser.ParseAsync(filePath, cancellationToken).ConfigureAwait(false);
+                return await downloader.GetRatingsFilePathAsync(cancellationToken).ConfigureAwait(false);
             }
-            catch (InvalidDataException retryEx)
+            catch (Exception retryEx) when (IsTransientNetworkError(retryEx))
             {
-                _logger.LogError(retryEx, "IMDb ratings data failed validation/decompression after retry");
-                throw;
+                if (!downloader.HasCacheFile)
+                {
+                    _logger.LogError(retryEx, "Download failed after retry and no cached ratings file exists");
+                    throw;
+                }
+
+                _logger.LogWarning(retryEx,
+                    "Download failed after retry; falling back to stale cache at {Path}", downloader.CachePath);
+
+                return downloader.CachePath;
             }
         }
+    }
+
+    private static bool IsTransientNetworkError(Exception ex)
+    {
+        return ex is HttpRequestException
+            || (ex is IOException && ex is not InvalidDataException);
     }
 
     private List<BaseItem> GetLibraryItems(PluginConfiguration config)
