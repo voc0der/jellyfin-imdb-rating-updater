@@ -23,9 +23,12 @@ public class ImdbFlatFileDownloader
         ILogger<ImdbFlatFileDownloader> logger,
         string dataPath)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(dataPath);
+
         _httpClientFactory = httpClientFactory;
         _logger = logger;
-        _cachePath = Path.Combine(dataPath, "imdb-ratings-cache", "title.ratings.tsv");
+        var cacheDirectoryPath = Path.Combine(dataPath, "imdb-ratings-cache");
+        _cachePath = Path.Combine(cacheDirectoryPath, "title.ratings.tsv");
     }
 
     public string CachePath => _cachePath;
@@ -127,7 +130,22 @@ public class ImdbFlatFileDownloader
             File.Delete(path);
             return true;
         }
-        catch (Exception ex)
+        catch (IOException ex)
+        {
+            _logger.LogWarning(ex, "Failed to delete cache file {Path}", path);
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Failed to delete cache file {Path}", path);
+            return false;
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Failed to delete cache file {Path}", path);
+            return false;
+        }
+        catch (NotSupportedException ex)
         {
             _logger.LogWarning(ex, "Failed to delete cache file {Path}", path);
             return false;
