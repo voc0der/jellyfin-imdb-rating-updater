@@ -68,7 +68,7 @@
                     </div>
 
                     <div>
-                        <button id="btnSave" is="emby-button" type="submit" class="raised button-submit block">
+                        <button id="btnSave" is="emby-button" type="button" class="raised button-submit block">
                             <span>Save</span>
                         </button>
                     </div>
@@ -148,8 +148,7 @@
             });
         });
 
-        document.getElementById('ImdbRatingsConfigForm').addEventListener('submit', function (e) {
-            e.preventDefault();
+        document.getElementById('btnSave').addEventListener('click', function () {
             Dashboard.showLoadingMsg();
 
             ApiClient.getPluginConfiguration(ImdbRatingsConfig.pluginId).then(function (config) {
@@ -172,8 +171,6 @@
                 Dashboard.hideLoadingMsg();
                 Dashboard.alert('Failed to load IMDb Ratings configuration.');
             });
-
-            return false;
         });
     </script>
 </body>
