@@ -8,6 +8,14 @@
     "overview": "Scheduled task that keeps Jellyfin community ratings in sync with IMDb",
     "versions": [
       {
+        "version": "1.0.0.17",
+        "changelog": "## What's Changed\n\n- Use button click handler instead of form submit for config save (442f5f7)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-imdb-rating-updater/compare/1.0.0.16...1.0.0.17\n",
+        "targetAbi": "10.11.6.0",
+        "sourceUrl": "https://github.com/voc0der/jellyfin-imdb-rating-updater/releases/download/1.0.0.17/IMDb_Ratings_1.0.0.17.zip",
+        "checksum": "61ef3f37f9b045a79d80144d5cfe94d5",
+        "timestamp": "2026-02-27T00:11:07Z"
+      },
+      {
         "version": "1.0.0.16",
         "changelog": "## What's Changed\n\n- Simplify config page to form submit and refactor parser LINQ (3ff245d)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-imdb-rating-updater/compare/1.0.0.15...1.0.0.16\n",
         "targetAbi": "10.11.6.0",
