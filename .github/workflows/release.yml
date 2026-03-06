@@ -30,7 +30,7 @@ jobs:
       run: dotnet build --configuration Release --no-restore
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: Jellyfin.Plugin.ImdbRatings
         path: bin/Release/net9.0/Jellyfin.Plugin.ImdbRatings.dll
