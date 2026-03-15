@@ -60,6 +60,8 @@ dotnet build --configuration Release
 
 Go to **Dashboard > Plugins > IMDb Ratings**:
 
+The daily run time is configured in **Dashboard > Scheduled Tasks**; `3:00 AM` is only the default.
+
 - **Minimum Votes** — skip items with fewer IMDb votes than this (default: 1)
 - **Include Movies** — update movie ratings
 - **Include TV Series** — update series and episode ratings
