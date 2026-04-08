@@ -8,6 +8,14 @@
     "overview": "Scheduled task that keeps Jellyfin community ratings in sync with IMDb",
     "versions": [
       {
+        "version": "1.0.0.19",
+        "changelog": "## What's Changed\n\n- chore: Bump the jellyfin-packages group with 2 updates (74cbd0b)\n- docs(readme): clarify scheduled task timing [skip ci] (95a3190)\n- docs(readme): refresh project presentation [skip ci] (2cdbebb)\n- chore(deps): bump actions/upload-artifact from 6 to 7 (162152d)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-imdb-rating-updater/compare/1.0.0.18...1.0.0.19\n",
+        "targetAbi": "10.11.6.0",
+        "sourceUrl": "https://github.com/voc0der/jellyfin-imdb-rating-updater/releases/download/1.0.0.19/IMDb_Ratings_1.0.0.19.zip",
+        "checksum": "2ea2ba835e24012663469c1e3df31174",
+        "timestamp": "2026-04-08T12:15:13Z"
+      },
+      {
         "version": "1.0.0.18",
         "changelog": "## What's Changed\n\n- Use inline onsubmit handler for config save (bd436ea)\n\n**Full Changelog**: https://github.com/voc0der/jellyfin-imdb-rating-updater/compare/1.0.0.17...1.0.0.18\n",
         "targetAbi": "10.11.6.0",
