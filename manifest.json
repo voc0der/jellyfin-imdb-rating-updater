@@ -6,6 +6,7 @@
     "description": "Downloads the IMDb ratings flat file daily and updates CommunityRating on all library items with an IMDb ID, without touching any other metadata.",
     "owner": "voc0der",
     "overview": "Scheduled task that keeps Jellyfin community ratings in sync with IMDb",
+    "imageUrl": "https://raw.githubusercontent.com/voc0der/jellyfin-imdb-rating-updater/main/icon.png",
     "versions": [
       {
         "version": "1.0.0.19",

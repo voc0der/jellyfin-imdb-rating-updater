@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="icon.png" alt="jellyfin-imdb-rating-updater icon" width="180" />
+</p>
+
 # Jellyfin IMDb Ratings
 
 <p align="center">

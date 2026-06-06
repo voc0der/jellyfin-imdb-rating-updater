@@ -117,13 +117,15 @@ jobs:
         CHECKSUM=$(md5sum "${ZIP_NAME}" | awk '{print $1}')
         TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
         REPO="${{ github.repository }}"
+        IMAGE_URL="https://raw.githubusercontent.com/${REPO}/main/icon.png"
 
         jq --arg version "$MANIFEST_VERSION" \
            --rawfile changelog CHANGELOG.md \
            --arg checksum "$CHECKSUM" \
            --arg timestamp "$TIMESTAMP" \
            --arg url "https://github.com/${REPO}/releases/download/${VERSION}/${ZIP_NAME}" \
-           '.[0].versions = [{
+           --arg imageUrl "$IMAGE_URL" \
+           '.[0].imageUrl = $imageUrl | .[0].versions = [{
              "version": $version,
              "changelog": $changelog,
              "targetAbi": "10.11.6.0",
