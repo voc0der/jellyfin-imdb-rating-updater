@@ -71,3 +71,4 @@ The daily run time is configured in **Dashboard > Scheduled Tasks**; `3:00 AM` i
 - **Include Movies** — update movie ratings
 - **Include TV Series** — update series and episode ratings
 - **Calculate Season Ratings** — set each season's rating to the average of eligible IMDb episode ratings in your library; episodes without IMDb data or below the votes threshold are excluded (requires Include TV Series, default: off)
+- **Cache Management** — view cache file size, age, and freshness status; delete the cache to force a re-download on the next task run

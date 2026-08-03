@@ -8,10 +8,10 @@
          data-require="emby-input,emby-button,emby-checkbox">
         <div data-role="content">
             <div class="content-primary">
+                <h1>IMDb Ratings</h1>
                 <form id="ImdbRatingsConfigForm" onsubmit="return window.ImdbRatingsConfigSubmit(event, this);">
                     <div class="verticalSection">
-                        <h2 class="sectionTitle">IMDb Ratings Settings</h2>
-
+                        <h2 class="sectionTitle">Filtering</h2>
                         <div class="inputContainer">
                             <label class="inputLabel" for="txtMinimumVotes">Minimum Votes Threshold</label>
                             <input id="txtMinimumVotes" type="number" min="1" max="1000000"
@@ -21,7 +21,10 @@
                                 Lower values can increase task duration because more items qualify for updates.
                             </div>
                         </div>
+                    </div>
 
+                    <div class="verticalSection">
+                        <h2 class="sectionTitle">Library Types</h2>
                         <div class="checkboxContainer checkboxContainer-withDescription">
                             <label>
                                 <input id="chkIncludeMovies" type="checkbox" is="emby-checkbox" />
@@ -41,45 +44,72 @@
                                 Update ratings for TV series and individual episodes in your library.
                             </div>
                         </div>
-
-                        <div class="checkboxContainer checkboxContainer-withDescription">
-                            <label>
-                                <input id="chkIncludeSeasonAverages" type="checkbox" is="emby-checkbox" />
-                                <span>Calculate Season Ratings</span>
-                            </label>
-                            <div class="fieldDescription checkboxFieldDescription">
-                                When enabled, each season's Community Rating is set to the average of eligible
-                                IMDb episode ratings in your library. Episodes without an IMDb rating or below
-                                the minimum votes threshold are excluded. Only has effect when "Include TV Series" is turned on.
-                            </div>
-                        </div>
-
-                        <div class="checkboxContainer checkboxContainer-withDescription">
-                            <label>
-                                <input id="chkEnableItemDebugLogging" type="checkbox" is="emby-checkbox" />
-                                <span>Enable Item Debug Logs</span>
-                            </label>
-                            <div class="fieldDescription checkboxFieldDescription">
-                                Off by default. When enabled, writes sampled per-item debug logs for troubleshooting
-                                missing IMDb rows and minimum-vote skips (can increase log volume and task duration).
-                            </div>
-                        </div>
                     </div>
 
-                    <div class="verticalSection" style="margin-top: 2em;">
-                        <h2 class="sectionTitle">How It Works</h2>
-                        <p style="margin: 0.5em 0;">
-                            This plugin downloads the official IMDb ratings flat file daily and updates the
-                            <strong>Community Rating</strong> field on all library items that have an IMDb ID.
-                            When enabled, season ratings are calculated as the average of eligible
-                            IMDb episode ratings in your library.
-                            No other metadata (titles, posters, cast, etc.) is modified.
-                        </p>
-                        <p style="margin: 0.5em 0;">
-                            The task runs on a daily schedule (default 3:00 AM) and can also be triggered
-                            manually from <strong>Dashboard &rarr; Scheduled Tasks</strong>.
-                        </p>
+                    <div class="verticalSection" style="margin-top: 1em;">
+                        <details>
+                            <summary style="cursor: pointer; font-weight: 600;">How It Works</summary>
+                            <p style="margin: 0.5em 0;">
+                                This plugin downloads the official IMDb ratings flat file daily and updates the
+                                <strong>Community Rating</strong> field on all library items that have an IMDb ID.
+                                When enabled, season ratings are calculated as the average of eligible
+                                IMDb episode ratings in your library.
+                                No other metadata (titles, posters, cast, etc.) is modified.
+                            </p>
+                            <p style="margin: 0.5em 0;">
+                                The task runs on a daily schedule (default 3:00 AM) and can also be triggered
+                                manually from <strong>Dashboard &rarr; Scheduled Tasks</strong>.
+                            </p>
+                        </details>
                     </div>
+
+                    <div class="verticalSection">
+                        <details>
+                            <summary style="cursor: pointer; font-weight: 600;">Advanced Settings</summary>
+                            <div style="margin-top: 1em;">
+                                <div class="checkboxContainer checkboxContainer-withDescription">
+                                    <label>
+                                        <input id="chkIncludeSeasonAverages" type="checkbox" is="emby-checkbox" />
+                                        <span>Calculate Season Ratings</span>
+                                    </label>
+                                    <div class="fieldDescription checkboxFieldDescription">
+                                        When enabled, each season's Community Rating is set to the average of eligible
+                                        IMDb episode ratings in your library. Episodes without an IMDb rating or below
+                                        the minimum votes threshold are excluded. Only has effect when "Include TV Series" is turned on.
+                                    </div>
+                                </div>
+                                <div class="checkboxContainer checkboxContainer-withDescription">
+                                    <label>
+                                        <input id="chkEnableItemDebugLogging" type="checkbox" is="emby-checkbox" />
+                                        <span>Enable Item Debug Logs</span>
+                                    </label>
+                                    <div class="fieldDescription checkboxFieldDescription">
+                                        Off by default. When enabled, writes sampled per-item debug logs for troubleshooting
+                                        missing IMDb rows and minimum-vote skips (can increase log volume and task duration).
+                                    </div>
+                                </div>
+
+                                <h2 class="sectionTitle" style="margin-top: 1.5em; font-size: 1.2em;">IMDb Ratings Cache</h2>
+                                <div id="cacheStatusContainer" style="margin-bottom: 1em;">
+                                    <p id="cacheStatus" style="margin: 0;">Loading cache status&hellip;</p>
+                                </div>
+                                <button id="btnDeleteCache" is="emby-button" type="button"
+                                        class="raised button-cancel" disabled>
+                                    <span>Delete Cache</span>
+                                </button>
+                                <div class="fieldDescription" style="margin-top: 1em;">
+                                    Sourced from the
+                                    <a href="https://datasets.imdbws.com/title.ratings.tsv.gz" target="_blank" rel="noopener noreferrer">IMDb ratings flat file</a>.
+                                    Cached locally to disk with a 23-hour TTL and re-downloaded
+                                    automatically when expired. Delete the cache to force a fresh download on the next task run.
+                                </div>
+                            </div>
+
+
+                        </details>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 1.5em 0;" />
 
                     <div>
                         <button id="btnSave" is="emby-button" type="submit" class="raised button-submit block">
@@ -192,6 +222,109 @@
 
             return false;
         };
+
+        function formatBytes(bytes) {
+            if (bytes < 1024) {
+                return bytes + ' B';
+            }
+
+            if (bytes < 1024 * 1024) {
+                return (bytes / 1024).toFixed(1) + ' KB';
+            }
+
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function formatLocalDateTime(utcDateStr) {
+            var date = new Date(utcDateStr);
+            var year = date.getFullYear();
+            var month = String(date.getMonth() + 1).padStart(2, '0');
+            var day = String(date.getDate()).padStart(2, '0');
+            var hours = String(date.getHours()).padStart(2, '0');
+            var mins = String(date.getMinutes()).padStart(2, '0');
+            var secs = String(date.getSeconds()).padStart(2, '0');
+            return year + '-' + month + '-' + day + ' ' + hours + ':' + mins + ':' + secs;
+        }
+
+        function formatRemainingTime(ms) {
+            if (ms <= 0) {
+                return '0 minutes';
+            }
+
+            var totalMins = Math.floor(ms / 60000);
+            if (totalMins < 60) {
+                return totalMins + ' minute' + (totalMins === 1 ? '' : 's');
+            }
+
+            var hours = Math.floor(totalMins / 60);
+            var mins = totalMins % 60;
+            var result = hours + ' hour' + (hours === 1 ? '' : 's');
+            if (mins > 0) {
+                result += ' ' + mins + ' min';
+            }
+
+            return result;
+        }
+
+        function loadCacheStatus() {
+            var statusEl = document.getElementById('cacheStatus');
+            var deleteBtn = document.getElementById('btnDeleteCache');
+
+            ApiClient.ajax({
+                url: ApiClient.getUrl('ImdbRatings/Cache/Status'),
+                type: 'GET',
+                dataType: 'json'
+            }).then(function (result) {
+                if (!result.Exists && !result.exists) {
+                    statusEl.innerHTML = 'No cache file exists. It will be downloaded on the next task run.';
+                    deleteBtn.disabled = true;
+                    return;
+                }
+
+                var exists = result.Exists || result.exists;
+                var sizeBytes = result.FileSizeBytes || result.fileSizeBytes || 0;
+                var lastModified = result.LastModifiedUtc || result.lastModifiedUtc;
+                var ttlHours = result.TtlHours || result.ttlHours || 23;
+                var isFresh = result.IsFresh || result.isFresh;
+
+                var html = '<strong>Size:</strong> ' + formatBytes(sizeBytes);
+                html += ' &nbsp;|&nbsp; <strong>Downloaded:</strong> ' + formatLocalDateTime(lastModified);
+
+                if (isFresh) {
+                    var ageMs = new Date() - new Date(lastModified);
+                    var remainingMs = (ttlHours * 3600000) - ageMs;
+                    html += ' &nbsp;|&nbsp; <strong>Time to live (TTL):</strong> ' + formatRemainingTime(remainingMs) + ' left';
+                } else {
+                    html += ' &nbsp;|&nbsp; <strong>Time to live (TTL):</strong> Expired';
+                }
+
+                statusEl.innerHTML = html;
+                deleteBtn.disabled = !exists;
+            }).catch(function () {
+                statusEl.innerHTML = 'Unable to load cache status.';
+                deleteBtn.disabled = true;
+            });
+        }
+
+        document.getElementById('btnDeleteCache').addEventListener('click', function () {
+            var deleteBtn = this;
+            deleteBtn.disabled = true;
+
+            ApiClient.ajax({
+                url: ApiClient.getUrl('ImdbRatings/Cache'),
+                type: 'DELETE'
+            }).then(function () {
+                Dashboard.alert('Cache deleted. It will be re-downloaded on the next task run.');
+                loadCacheStatus();
+            }).catch(function () {
+                Dashboard.alert('Failed to delete cache.');
+                loadCacheStatus();
+            });
+        });
+
+        document.getElementById('ImdbRatingsConfigPage').addEventListener('pageshow', function () {
+            loadCacheStatus();
+        });
         </script>
     </div>
 </body>
