@@ -49,6 +49,9 @@ A Jellyfin plugin that downloads the [IMDb ratings flat file](https://datasets.i
 2. Add: `https://raw.githubusercontent.com/voc0der/jellyfin-plugin-imdb-ratings/main/manifest.json`
 3. Install **IMDb Ratings** from the catalog
 
+> [!NOTE]
+> Full repository of this author's plugins: [voc0der/jellyfin-plugins](https://github.com/voc0der/jellyfin-plugins).
+
 ### Manual
 
 1. Download the latest release ZIP
