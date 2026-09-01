@@ -1,23 +1,23 @@
 <p align="center">
-  <img src="icon.png" alt="jellyfin-imdb-rating-updater icon" width="180" />
+  <img src="icon.png" alt="jellyfin-plugin-imdb-ratings icon" width="180" />
 </p>
 
 # Jellyfin IMDb Ratings
 
 <p align="center">
-  <a href="https://github.com/voc0der/jellyfin-imdb-rating-updater/releases/latest">
-    <img src="https://img.shields.io/github/v/release/voc0der/jellyfin-imdb-rating-updater?label=stable%20release" alt="Stable release version" />
+  <a href="https://github.com/voc0der/jellyfin-plugin-imdb-ratings/releases/latest">
+    <img src="https://img.shields.io/github/v/release/voc0der/jellyfin-plugin-imdb-ratings?label=stable%20release" alt="Stable release version" />
   </a>
-  <a href="https://github.com/voc0der/jellyfin-imdb-rating-updater/tree/main/tests">
+  <a href="https://github.com/voc0der/jellyfin-plugin-imdb-ratings/tree/main/tests">
     <img src="https://img.shields.io/badge/coverage-65%25-yellow" alt="Code coverage percentage" />
   </a>
-  <a href="https://github.com/voc0der/jellyfin-imdb-rating-updater/issues">
-    <img src="https://img.shields.io/github/issues/voc0der/jellyfin-imdb-rating-updater?color=DAA520" alt="Open issues" />
+  <a href="https://github.com/voc0der/jellyfin-plugin-imdb-ratings/issues">
+    <img src="https://img.shields.io/github/issues/voc0der/jellyfin-plugin-imdb-ratings?color=DAA520" alt="Open issues" />
   </a>
   <a href="LICENSE">
-    <img src="https://img.shields.io/github/license/voc0der/jellyfin-imdb-rating-updater?color=97CA00" alt="License" />
+    <img src="https://img.shields.io/github/license/voc0der/jellyfin-plugin-imdb-ratings?color=97CA00" alt="License" />
   </a>
-  <a href="https://github.com/voc0der/jellyfin-imdb-rating-updater/network/dependencies">
+  <a href="https://github.com/voc0der/jellyfin-plugin-imdb-ratings/network/dependencies">
     <img src="https://img.shields.io/badge/dependencies-2%20outdated-orange" alt="Dependencies status" />
   </a>
 </p>
@@ -46,7 +46,7 @@ A Jellyfin plugin that downloads the [IMDb ratings flat file](https://datasets.i
 ### From Plugin Repository
 
 1. In Jellyfin, go to **Dashboard > Plugins > Repositories**
-2. Add: `https://raw.githubusercontent.com/voc0der/jellyfin-imdb-rating-updater/main/manifest.json`
+2. Add: `https://raw.githubusercontent.com/voc0der/jellyfin-plugin-imdb-ratings/main/manifest.json`
 3. Install **IMDb Ratings** from the catalog
 
 ### Manual
