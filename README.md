@@ -18,7 +18,7 @@
     <img src="https://img.shields.io/github/license/voc0der/jellyfin-imdb-rating-updater?color=97CA00" alt="License" />
   </a>
   <a href="https://github.com/voc0der/jellyfin-imdb-rating-updater/network/dependencies">
-    <img src="https://img.shields.io/badge/dependencies-4%20outdated-orange" alt="Dependencies status" />
+    <img src="https://img.shields.io/badge/dependencies-2%20outdated-orange" alt="Dependencies status" />
   </a>
 </p>
 
