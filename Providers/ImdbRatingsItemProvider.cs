@@ -65,15 +65,25 @@ public class ImdbRatingsItemProvider :
 
     /// <inheritdoc />
     public Task<ItemUpdateType> FetchAsync(Movie item, MetadataRefreshOptions options, CancellationToken cancellationToken)
-        => ApplyRatingAsync(item, config => config.IncludeMovies, cancellationToken);
+        => ApplyRatingAsync(item, IsMovieEnabled, cancellationToken);
 
     /// <inheritdoc />
     public Task<ItemUpdateType> FetchAsync(Series item, MetadataRefreshOptions options, CancellationToken cancellationToken)
-        => ApplyRatingAsync(item, config => config.IncludeSeries, cancellationToken);
+        => ApplyRatingAsync(item, IsSeriesEnabled, cancellationToken);
 
     /// <inheritdoc />
     public Task<ItemUpdateType> FetchAsync(Episode item, MetadataRefreshOptions options, CancellationToken cancellationToken)
-        => ApplyRatingAsync(item, config => config.IncludeSeries, cancellationToken);
+        => ApplyRatingAsync(item, IsSeriesEnabled, cancellationToken);
+
+    /// <summary>
+    /// Gets whether movies are enabled. Named rather than inline so the item-type-to-setting mapping is testable.
+    /// </summary>
+    internal static bool IsMovieEnabled(PluginConfiguration config) => config.IncludeMovies;
+
+    /// <summary>
+    /// Gets whether series and episodes are enabled; both follow the single Include Series setting.
+    /// </summary>
+    internal static bool IsSeriesEnabled(PluginConfiguration config) => config.IncludeSeries;
 
     private async Task<ItemUpdateType> ApplyRatingAsync(
         BaseItem item,
@@ -99,14 +109,41 @@ public class ImdbRatingsItemProvider :
             return ItemUpdateType.None;
         }
 
-        var imdbId = item.GetProviderId(MetadataProvider.Imdb);
-        if (string.IsNullOrWhiteSpace(imdbId))
+        // Loading the index is the one expensive step, so skip it for items that cannot use it anyway.
+        if (string.IsNullOrWhiteSpace(item.GetProviderId(MetadataProvider.Imdb)))
         {
             return ItemUpdateType.None;
         }
 
         var index = await _indexCache.GetIndexAsync(cancellationToken).ConfigureAwait(false);
-        if (index is null)
+
+        return Apply(item, config, typeEnabled: true, index, _logger);
+    }
+
+    /// <summary>
+    /// Decides and applies the rating for a single item, given an already-resolved configuration and index.
+    /// </summary>
+    /// <remarks>
+    /// Split out from <see cref="ApplyRatingAsync"/> so the decision ladder can be tested without a
+    /// <see cref="Plugin"/> singleton, a Jellyfin server, or an index cache behind it.
+    /// </remarks>
+    internal static ItemUpdateType Apply(
+        BaseItem item,
+        PluginConfiguration config,
+        bool typeEnabled,
+        ImdbRatingsIndex? index,
+        ILogger logger)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(config);
+
+        if (!config.EnableMetadataProvider || !typeEnabled || index is null)
+        {
+            return ItemUpdateType.None;
+        }
+
+        var imdbId = item.GetProviderId(MetadataProvider.Imdb);
+        if (string.IsNullOrWhiteSpace(imdbId))
         {
             return ItemUpdateType.None;
         }
@@ -116,15 +153,15 @@ public class ImdbRatingsItemProvider :
             return ItemUpdateType.None;
         }
 
-        // Match the scheduled task's tolerance so the two paths agree on what counts as a change.
-        if (item.CommunityRating.HasValue && Math.Abs(item.CommunityRating.Value - rating) < 0.01f)
+        // Shared with the scheduled task so the two paths agree on what counts as a change.
+        if (RatingComparison.IsUnchanged(item.CommunityRating, rating))
         {
             return ItemUpdateType.None;
         }
 
-        if (config.EnableItemDebugLogging && _logger.IsEnabled(LogLevel.Debug))
+        if (config.EnableItemDebugLogging && logger.IsEnabled(LogLevel.Debug))
         {
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Applying IMDb rating {Rating} ({Votes} votes) to \"{Name}\" ({ImdbId}) at scan time",
                 rating,
                 votes,

@@ -304,29 +304,4 @@ public class ImdbRatingsIndexCacheTests
             _utcNow += amount;
         }
     }
-
-    private sealed class TempDirectory : IDisposable
-    {
-        private readonly string _path;
-
-        public TempDirectory()
-        {
-            _path = Path.Combine(Path.GetTempPath(), "imdb-ratings-cache-tests-" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(_path);
-        }
-
-        public string PathFor(string fileName) => Path.Combine(_path, fileName);
-
-        public void Dispose()
-        {
-            try
-            {
-                Directory.Delete(_path, recursive: true);
-            }
-            catch
-            {
-                // Best-effort cleanup for test temp directories.
-            }
-        }
-    }
 }

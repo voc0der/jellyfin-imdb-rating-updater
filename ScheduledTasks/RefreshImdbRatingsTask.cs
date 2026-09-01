@@ -128,7 +128,7 @@ public class RefreshImdbRatingsTask : IScheduledTask
         int lastScanProgressBucket = 30;
 
         // Step 4: Identify items that need rating updates (without mutating in-memory state)
-        var pendingUpdates = new List<(BaseItem Item, BaseItem? Parent, float? OldRating, float NewRating)>();
+        var pendingUpdates = new List<PendingRatingUpdate>();
         int skippedMissingImdbId = 0;
         int skippedBelowMinimumVotes = 0;
         int skippedUnchanged = 0;
@@ -170,13 +170,13 @@ public class RefreshImdbRatingsTask : IScheduledTask
             else
             {
                 var newRating = ratingData.Rating;
-                if (item.CommunityRating.HasValue && Math.Abs(item.CommunityRating.Value - newRating) < 0.01f)
+                if (RatingComparison.IsUnchanged(item.CommunityRating, newRating))
                 {
                     skippedUnchanged++;
                 }
                 else
                 {
-                    pendingUpdates.Add((item, item.GetParent(), item.CommunityRating, newRating));
+                    pendingUpdates.Add(new PendingRatingUpdate(item, item.GetParent(), item.CommunityRating, newRating));
                 }
             }
 
@@ -243,13 +243,13 @@ public class RefreshImdbRatingsTask : IScheduledTask
                     continue;
                 }
 
-                if (season.CommunityRating.HasValue && Math.Abs(season.CommunityRating.Value - avgRating) < 0.01f)
+                if (RatingComparison.IsUnchanged(season.CommunityRating, avgRating))
                 {
                     seasonSkippedUnchanged++;
                     continue;
                 }
 
-                pendingUpdates.Add((season, season.GetParent(), season.CommunityRating, avgRating));
+                pendingUpdates.Add(new PendingRatingUpdate(season, season.GetParent(), season.CommunityRating, avgRating));
                 seasonUpdated++;
             }
 
@@ -267,77 +267,11 @@ public class RefreshImdbRatingsTask : IScheduledTask
         {
             _logger.LogInformation("Batch saving {Count} updated ratings to database", pendingUpdates.Count);
 
-            const int batchSize = 500;
-            var byParent = pendingUpdates.GroupBy(p => p.Parent?.Id ?? Guid.Empty);
-            int saved = 0;
-            int lastSaveProgressBucket = 90;
-
-            foreach (var group in byParent)
-            {
-                var parent = group.First().Parent;
-
-                foreach (var chunk in group.Chunk(batchSize))
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    if (parent is null)
-                    {
-                        // Preserve prior semantics for root/null-parent items.
-                        for (int j = 0; j < chunk.Length; j++)
-                        {
-                            chunk[j].Item.CommunityRating = chunk[j].NewRating;
-                            try
-                            {
-                                await _libraryManager.UpdateItemAsync(
-                                    chunk[j].Item,
-                                    chunk[j].Parent!, // Preserve prior behavior for root items with no parent.
-                                    ItemUpdateType.MetadataEdit,
-                                    cancellationToken).ConfigureAwait(false);
-                            }
-                            catch
-                            {
-                                chunk[j].Item.CommunityRating = chunk[j].OldRating;
-                                throw;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // Apply ratings immediately before persisting this chunk.
-                        var chunkItems = new BaseItem[chunk.Length];
-                        for (int j = 0; j < chunk.Length; j++)
-                        {
-                            chunk[j].Item.CommunityRating = chunk[j].NewRating;
-                            chunkItems[j] = chunk[j].Item;
-                        }
-
-                        try
-                        {
-                            await _libraryManager.UpdateItemsAsync(chunkItems, parent, ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
-                        }
-                        catch
-                        {
-                            // Revert this chunk's in-memory mutations if the batch save fails/cancels.
-                            for (int j = 0; j < chunk.Length; j++)
-                            {
-                                chunk[j].Item.CommunityRating = chunk[j].OldRating;
-                            }
-
-                            throw;
-                        }
-                    }
-
-                    saved += chunk.Length;
-
-                    double saveProgress = 90 + (10.0 * saved / pendingUpdates.Count);
-                    int saveProgressBucket = (int)saveProgress;
-                    if (saveProgressBucket > lastSaveProgressBucket)
-                    {
-                        lastSaveProgressBucket = saveProgressBucket;
-                        progress.Report(saveProgress);
-                    }
-                }
-            }
+            await ApplyPendingUpdatesAsync(
+                pendingUpdates,
+                new LibraryManagerUpdateSink(_libraryManager),
+                progress,
+                cancellationToken).ConfigureAwait(false);
         }
 
         // Step 6: Refresh the compact index the scan-time metadata provider reads.
@@ -354,6 +288,119 @@ public class RefreshImdbRatingsTask : IScheduledTask
             skippedBelowMinimumVotes,
             skippedMissingImdbId,
             notFound);
+    }
+
+    /// <summary>
+    /// Applies each pending rating and persists it, grouped by parent and chunked.
+    /// </summary>
+    /// <remarks>
+    /// Ratings are written to the in-memory items only immediately before the chunk containing them is saved,
+    /// and reverted if that save throws. Jellyfin hands out live <see cref="BaseItem"/> instances, so a chunk
+    /// that failed to persist must not leave the running server displaying a rating no database row holds.
+    /// </remarks>
+    internal static async Task ApplyPendingUpdatesAsync(
+        IReadOnlyList<PendingRatingUpdate> pendingUpdates,
+        IItemUpdateSink sink,
+        IProgress<double> progress,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(pendingUpdates);
+        ArgumentNullException.ThrowIfNull(sink);
+        ArgumentNullException.ThrowIfNull(progress);
+
+        const int batchSize = 500;
+        var byParent = pendingUpdates.GroupBy(p => p.Parent?.Id ?? Guid.Empty);
+        int saved = 0;
+        int lastSaveProgressBucket = 90;
+
+        foreach (var group in byParent)
+        {
+            var parent = group.First().Parent;
+
+            foreach (var chunk in group.Chunk(batchSize))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (parent is null)
+                {
+                    // Preserve prior semantics for root/null-parent items.
+                    for (int j = 0; j < chunk.Length; j++)
+                    {
+                        chunk[j].Item.CommunityRating = chunk[j].NewRating;
+                        try
+                        {
+                            await sink.UpdateItemAsync(
+                                chunk[j].Item,
+                                chunk[j].Parent, // Preserve prior behavior for root items with no parent.
+                                ItemUpdateType.MetadataEdit,
+                                cancellationToken).ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            chunk[j].Item.CommunityRating = chunk[j].OldRating;
+                            throw;
+                        }
+                    }
+                }
+                else
+                {
+                    // Apply ratings immediately before persisting this chunk.
+                    var chunkItems = new BaseItem[chunk.Length];
+                    for (int j = 0; j < chunk.Length; j++)
+                    {
+                        chunk[j].Item.CommunityRating = chunk[j].NewRating;
+                        chunkItems[j] = chunk[j].Item;
+                    }
+
+                    try
+                    {
+                        await sink.UpdateItemsAsync(chunkItems, parent, ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // Revert this chunk's in-memory mutations if the batch save fails/cancels.
+                        for (int j = 0; j < chunk.Length; j++)
+                        {
+                            chunk[j].Item.CommunityRating = chunk[j].OldRating;
+                        }
+
+                        throw;
+                    }
+                }
+
+                saved += chunk.Length;
+
+                double saveProgress = 90 + (10.0 * saved / pendingUpdates.Count);
+                int saveProgressBucket = (int)saveProgress;
+                if (saveProgressBucket > lastSaveProgressBucket)
+                {
+                    lastSaveProgressBucket = saveProgressBucket;
+                    progress.Report(saveProgress);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Builds the <see cref="BaseItemKind"/> filter for the library query, empty when nothing is selected.
+    /// </summary>
+    internal static BaseItemKind[] BuildIncludeItemTypes(PluginConfiguration config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+
+        var includeTypes = new List<BaseItemKind>();
+        if (config.IncludeMovies)
+        {
+            includeTypes.Add(BaseItemKind.Movie);
+        }
+
+        if (config.IncludeSeries)
+        {
+            includeTypes.Add(BaseItemKind.Series);
+            includeTypes.Add(BaseItemKind.Episode);
+        }
+
+        return includeTypes.ToArray();
     }
 
     /// <summary>
@@ -576,26 +623,47 @@ public class RefreshImdbRatingsTask : IScheduledTask
             Recursive = true
         };
 
-        var includeTypes = new List<BaseItemKind>();
-        if (config.IncludeMovies)
-        {
-            includeTypes.Add(BaseItemKind.Movie);
-        }
-
-        if (config.IncludeSeries)
-        {
-            includeTypes.Add(BaseItemKind.Series);
-            includeTypes.Add(BaseItemKind.Episode);
-        }
-
-        if (includeTypes.Count == 0)
+        var includeTypes = BuildIncludeItemTypes(config);
+        if (includeTypes.Length == 0)
         {
             _logger.LogWarning("No library types selected — nothing to update");
             return Array.Empty<BaseItem>();
         }
 
-        query.IncludeItemTypes = includeTypes.ToArray();
+        query.IncludeItemTypes = includeTypes;
 
         return _libraryManager.GetItemList(query);
+    }
+
+    /// <summary>
+    /// The subset of <see cref="ILibraryManager"/> the batch-save loop needs, so the loop is testable
+    /// without standing up the full 100-method interface.
+    /// </summary>
+    internal interface IItemUpdateSink
+    {
+        Task UpdateItemAsync(BaseItem item, BaseItem? parent, ItemUpdateType updateReason, CancellationToken cancellationToken);
+
+        Task UpdateItemsAsync(IReadOnlyList<BaseItem> items, BaseItem parent, ItemUpdateType updateReason, CancellationToken cancellationToken);
+    }
+
+    /// <summary>
+    /// A single rating change, captured before anything is mutated so a failed save can be undone.
+    /// </summary>
+    internal readonly record struct PendingRatingUpdate(BaseItem Item, BaseItem? Parent, float? OldRating, float NewRating);
+
+    private sealed class LibraryManagerUpdateSink : IItemUpdateSink
+    {
+        private readonly ILibraryManager _libraryManager;
+
+        public LibraryManagerUpdateSink(ILibraryManager libraryManager)
+        {
+            _libraryManager = libraryManager;
+        }
+
+        public Task UpdateItemAsync(BaseItem item, BaseItem? parent, ItemUpdateType updateReason, CancellationToken cancellationToken)
+            => _libraryManager.UpdateItemAsync(item, parent!, updateReason, cancellationToken);
+
+        public Task UpdateItemsAsync(IReadOnlyList<BaseItem> items, BaseItem parent, ItemUpdateType updateReason, CancellationToken cancellationToken)
+            => _libraryManager.UpdateItemsAsync(items, parent, updateReason, cancellationToken);
     }
 }
