@@ -24,6 +24,12 @@ dotnet format whitespace --verify-no-changes
 dotnet format style --verify-no-changes --severity warn
 ```
 
+## Badges
+
+The `coverage-N%` badge is maintained by hand from the `line-rate` that `dotnet test --collect:"XPlat Code Coverage"` writes to its Cobertura report, rounded to a whole percent.
+
+The `dependencies-N outdated` badge in the README is maintained by hand: `N` is the row count from `dotnet list package --outdated` across both `Jellyfin.Plugin.ImdbRatings.csproj` and the test project, excluding the `Jellyfin.*` packages that are intentionally pinned for server backwards compatibility, so bump it whenever you change a `PackageReference`.
+
 ## Reporting Issues
 
 - Search existing issues before opening a new one

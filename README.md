@@ -9,7 +9,7 @@
     <img src="https://img.shields.io/github/v/release/voc0der/jellyfin-imdb-rating-updater?label=stable%20release" alt="Stable release version" />
   </a>
   <a href="https://github.com/voc0der/jellyfin-imdb-rating-updater/tree/main/tests">
-    <img src="https://img.shields.io/badge/coverage-26%25-red" alt="Code coverage percentage" />
+    <img src="https://img.shields.io/badge/coverage-65%25-yellow" alt="Code coverage percentage" />
   </a>
   <a href="https://github.com/voc0der/jellyfin-imdb-rating-updater/issues">
     <img src="https://img.shields.io/github/issues/voc0der/jellyfin-imdb-rating-updater?color=DAA520" alt="Open issues" />
@@ -17,7 +17,7 @@
   <a href="LICENSE">
     <img src="https://img.shields.io/github/license/voc0der/jellyfin-imdb-rating-updater?color=97CA00" alt="License" />
   </a>
-  <a href="https://github.com/voc0der/jellyfin-imdb-rating-updater/blob/main/tests/Jellyfin.Plugin.ImdbRatings.Tests/Jellyfin.Plugin.ImdbRatings.Tests.csproj">
+  <a href="https://github.com/voc0der/jellyfin-imdb-rating-updater/network/dependencies">
     <img src="https://img.shields.io/badge/dependencies-4%20outdated-orange" alt="Dependencies status" />
   </a>
 </p>
